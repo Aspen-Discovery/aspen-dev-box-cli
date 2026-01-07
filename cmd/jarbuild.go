@@ -24,7 +24,7 @@ func runDockerBuild(aspenClone, jarFile string) error {
         "-v", fmt.Sprintf("%s:/app", aspenClone),
         "-w", workDir,
         "--user", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()),
-        "openjdk:11", "bash", "-c", `
+        "adoptopenjdk:11", "bash", "-c", `
             mkdir -p bin && \
             javac -cp "$(find /app -name '*.jar' | tr '\n' ':')" -d bin $(find src -name '*.java') $(find /app/code/java_shared_libraries -name '*.java') && \
             jar cfm $(basename $(pwd)).jar META-INF/MANIFEST.MF -C bin . && \
