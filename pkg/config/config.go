@@ -31,7 +31,7 @@ const (
 	// SupportedShells is a list of supported shells for completion
 	SupportedShells = "bash zsh fish"
 	// JavaBuildImage is the Docker image used for Java builds
-	JavaBuildImage = "openjdk:11"
+	JavaBuildImage = "adoptopenjdk:11"
 	// AlpineImage is the Docker image used for file operations
 	AlpineImage = "alpine:latest"
 	// JavaSharedLibrariesPath is the path to Java shared libraries
