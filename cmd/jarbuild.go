@@ -20,16 +20,59 @@ func runDockerBuild(jarFile string) error {
 
 	fmt.Printf("\n\033[1;34mRecompiling JAR file: %s\033[0m\n", jarFile)
 
+	// Build script that:
+	// 1. Detects MANIFEST.MF location (root META-INF/ or src/META-INF/)
+	// 2. Conditionally compiles java_shared_libraries only if source imports them
+	buildScript := `
+set -e
+
+SHARED_LIBS_PATH="` + config.GetJavaSharedLibrariesPath() + `"
+MANIFEST_PATH=""
+
+# Detect MANIFEST.MF location
+if [ -f "META-INF/MANIFEST.MF" ]; then
+    MANIFEST_PATH="META-INF/MANIFEST.MF"
+elif [ -f "src/META-INF/MANIFEST.MF" ]; then
+    MANIFEST_PATH="src/META-INF/MANIFEST.MF"
+else
+    echo "ERROR: No MANIFEST.MF found in META-INF/ or src/META-INF/"
+    exit 1
+fi
+
+echo "Using MANIFEST: $MANIFEST_PATH"
+
+# Check if any source file imports from java_shared_libraries
+NEEDS_SHARED_LIBS=false
+if grep -rq "import com.turning_leaf_technologies" src/ 2>/dev/null; then
+    NEEDS_SHARED_LIBS=true
+fi
+
+mkdir -p bin
+
+# Build classpath from all jars in the project
+CLASSPATH=$(find /app -name '*.jar' | tr '\n' ':')
+
+# Compile source files
+if [ "$NEEDS_SHARED_LIBS" = "true" ]; then
+    echo "Compiling with shared libraries..."
+    javac -cp "$CLASSPATH" -d bin $(find src -name '*.java') $(find "$SHARED_LIBS_PATH" -name '*.java')
+else
+    echo "Compiling standalone module (no shared libraries needed)..."
+    javac -cp "$CLASSPATH" -d bin $(find src -name '*.java')
+fi
+
+# Create JAR with detected MANIFEST location
+jar cfm $(basename $(pwd)).jar "$MANIFEST_PATH" -C bin .
+
+rm -rf bin
+echo "Successfully built $(basename $(pwd)).jar"
+`
+
 	command := exec.Command("docker", "run", "--rm",
 		"-v", fmt.Sprintf("%s:/app", config.GetAspenCloneDir()),
 		"-w", workDir,
 		"--user", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()),
-		config.GetJavaBuildImage(), "bash", "-c", `
-			mkdir -p bin && \
-			javac -cp "$(find /app -name '*.jar' | tr '\n' ':')" -d bin $(find src -name '*.java') $(find `+config.GetJavaSharedLibrariesPath()+` -name '*.java') && \
-			jar cfm $(basename $(pwd)).jar META-INF/MANIFEST.MF -C bin . && \
-			rm -rf bin
-		`,
+		config.GetJavaBuildImage(), "bash", "-c", buildScript,
 	)
 
 	command.Stdin = os.Stdin

@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
 	"os"
 	"path/filepath"
-	"github.com/joho/godotenv"
 )
 
 const (
@@ -36,8 +36,8 @@ const (
 	AlpineImage = "alpine:latest"
 	// JavaSharedLibrariesPath is the path to Java shared libraries
 	JavaSharedLibrariesPath = "/app/code/java_shared_libraries"
-	// ExcludedJarPatterns is a list of patterns to exclude from JAR builds
-	ExcludedJarPatterns = "java_shared_libraries marcMergeUtility palace_project_export rbdigital_export"
+	// ExcludedJarPatterns contains modules that shouldn't be built as JARs (shared libraries only)
+	ExcludedJarPatterns = "java_shared_libraries"
 	// JSWorkDir is the working directory for JavaScript operations
 	JSWorkDir = "/usr/local/aspen-discovery/code/web/interface/themes/responsive/js"
 	// MergeJSScript is the name of the JavaScript merge script
