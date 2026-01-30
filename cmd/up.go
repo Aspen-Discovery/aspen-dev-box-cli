@@ -32,6 +32,7 @@ func UpCommand() *cobra.Command {
 You can run in detached mode, with debugging enabled, or with the database GUI.
 You can also select which ILS to use (koha or evergreen).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			files := []string{config.GetDefaultComposeFile()}
 
 			if debugging {
@@ -51,7 +52,7 @@ You can also select which ILS to use (koha or evergreen).`,
 			files = append(files, ilsFile)
 
 			if pullUpdated {
-				if err := pullImagesFromFiles(files); err != nil {
+				if err := pullImagesFromFiles(ctx, files); err != nil {
 					return err
 				}
 			}
@@ -61,7 +62,7 @@ You can also select which ILS to use (koha or evergreen).`,
 				Detached: detached,
 			})
 
-			return compose.Up()
+			return compose.Up(ctx)
 		},
 	}
 
@@ -99,14 +100,12 @@ func getILSComposeFile(aspenDocker, ils, kohaStack string) (string, error) {
 	}
 }
 
-func pullImagesFromFiles(files []string) error {
+func pullImagesFromFiles(ctx context.Context, files []string) error {
 	runner, err := docker.NewRunner()
 	if err != nil {
 		return fmt.Errorf("initialize docker: %w", err)
 	}
 	defer runner.Close()
-
-	ctx := context.Background()
 
 	for _, file := range files {
 		content, err := os.ReadFile(file)

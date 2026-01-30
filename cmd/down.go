@@ -21,7 +21,7 @@ This command stops and removes all containers defined in the docker-compose file
 			compose := docker.NewCompose(docker.ComposeConfig{
 				Files: []string{config.GetDefaultComposeFile()},
 			})
-			return compose.Down()
+			return compose.Down(cmd.Context())
 		},
 	}
 }
