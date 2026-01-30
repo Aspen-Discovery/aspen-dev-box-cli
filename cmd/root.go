@@ -1,7 +1,3 @@
-/*
-Copyright © 2023 Aspen Dev Box Team
-
-*/
 package cmd
 
 import (

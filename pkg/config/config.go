@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
 	"path/filepath"
+
+	"github.com/joho/godotenv"
 )
 
 const (

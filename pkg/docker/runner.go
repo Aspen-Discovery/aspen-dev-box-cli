@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/term"
 )
@@ -182,8 +183,9 @@ func (r *SDKRunner) Pull(ctx context.Context, imageName string) error {
 		return fmt.Errorf("pull image %s: %w", imageName, err)
 	}
 	defer reader.Close()
-	io.Copy(os.Stdout, reader)
-	return nil
+
+	fd, isTerm := term.GetFdInfo(os.Stdout)
+	return jsonmessage.DisplayJSONMessagesStream(reader, os.Stdout, fd, isTerm, nil)
 }
 
 func (r *SDKRunner) pullImageIfNeeded(ctx context.Context, imageName string) error {
