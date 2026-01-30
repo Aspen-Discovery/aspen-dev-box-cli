@@ -45,7 +45,7 @@ SELECT @update_count as Changed_Rows;
 			if printRows {
 				sql += fmt.Sprintf(`
 SELECT * FROM account_profiles 
-WHERE driver='%s'
+WHERE driver='%s'\G
 `, driver)
 			}
 
