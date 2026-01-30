@@ -37,9 +37,10 @@ Use the --rtl flag to compile RTL (right-to-left) CSS files.`,
 			defer runner.Close()
 
 			result, err := runner.Run(context.Background(), docker.RunConfig{
-				Image: config.GetLessImage(),
-				Cmd:   []string{config.GetLessInputFile(), config.GetLessOutputFile()},
-				Binds: []string{fmt.Sprintf("%s:/src", cssDir)},
+				Image:      config.GetLessImage(),
+				Cmd:        []string{config.GetLessInputFile(), config.GetLessOutputFile()},
+				WorkingDir: "/src",
+				Binds:      []string{fmt.Sprintf("%s:/src", cssDir)},
 			})
 			if err != nil {
 				return fmt.Errorf("compile CSS: %w", err)
