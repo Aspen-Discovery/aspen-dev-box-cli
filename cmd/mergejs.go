@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -29,9 +28,9 @@ This command runs the merge script inside the main container to combine and mini
 			defer runner.Close()
 
 			result, err := runner.Exec(context.Background(), docker.ExecConfig{
-				Container:  config.GetMainContainerName(),
-				Cmd:        []string{"php", config.GetMergeJSScript()},
-				WorkingDir: config.GetJSWorkDir(),
+				Container:  cfg.MainContainerName,
+				Cmd:        []string{"php", cfg.MergeJSScript},
+				WorkingDir: cfg.JSWorkDir,
 			})
 			if err != nil {
 				return fmt.Errorf("merge javascript: %w", err)

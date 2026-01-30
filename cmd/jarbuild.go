@@ -3,9 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 	"adb/pkg/jar"
 
@@ -33,10 +31,10 @@ This command can build either a single JAR file selected interactively or all JA
 			defer runner.Close()
 
 			builder := jar.NewBuilder(jar.BuildConfig{
-				AspenCloneDir:   config.GetAspenCloneDir(),
-				JavaImage:       config.GetJavaBuildImage(),
-				SharedLibsPath:  config.GetJavaSharedLibrariesPath(),
-				ExcludePatterns: strings.Split(config.GetExcludedJarPatterns(), " "),
+				AspenCloneDir:   cfg.AspenCloneDir,
+				JavaImage:       cfg.JavaBuildImage,
+				SharedLibsPath:  cfg.JavaSharedLibsPath,
+				ExcludePatterns: cfg.ExcludedJarPatterns,
 			}, runner)
 
 			ctx := context.Background()
@@ -71,7 +69,7 @@ func buildSingleJar(ctx context.Context, builder *jar.Builder) error {
 		return fmt.Errorf("fuzzy finder: %w", err)
 	}
 
-	codeDir := fmt.Sprintf("%s/code", config.GetAspenCloneDir())
+	codeDir := cfg.CodeDir()
 	module, err := jar.FindModule(codeDir, names[idx])
 	if err != nil {
 		return err

@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/fatih/color"
@@ -42,7 +41,7 @@ This command triggers the database update process by calling the SystemAPI endpo
 			curlCmd := "curl -s -k http://localhost/API/SystemAPI?method=runPendingDatabaseUpdates"
 
 			result, err := runner.Exec(context.Background(), docker.ExecConfig{
-				Container: config.GetMainContainerName(),
+				Container: cfg.MainContainerName,
 				Cmd:       []string{"/bin/bash", "-c", curlCmd},
 			})
 			if err != nil {

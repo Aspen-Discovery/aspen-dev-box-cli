@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -28,9 +27,9 @@ This command opens a bash shell in the main container with the working directory
 			defer runner.Close()
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
-				Container:  config.GetMainContainerName(),
+				Container:  cfg.MainContainerName,
 				Cmd:        []string{"/bin/bash"},
-				WorkingDir: config.GetMainContainerWorkDir(),
+				WorkingDir: cfg.MainContainerWorkDir,
 			})
 		},
 	}

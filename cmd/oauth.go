@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -55,10 +54,10 @@ WHERE driver='%s'\G
 			}
 			defer runner.Close()
 
-			shellCmd := fmt.Sprintf("echo \"%s\" | mariadb %s", sql, config.GetDBConnectionString())
+			shellCmd := fmt.Sprintf("echo \"%s\" | mariadb %s", sql, cfg.DBConnectionString())
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
-				Container: config.GetDBContainerName(),
+				Container: cfg.DBContainerName,
 				Cmd:       []string{"/bin/bash", "-c", shellCmd},
 			})
 		},

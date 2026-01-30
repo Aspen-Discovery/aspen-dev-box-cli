@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"adb/pkg/config"
+
 	"github.com/spf13/cobra"
 )
+
+var cfg *config.Config
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -41,5 +45,10 @@ func Execute() {
 }
 
 func init() {
-	// Add global flags here if needed
+	var err error
+	cfg, err = config.Load()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		os.Exit(1)
+	}
 }

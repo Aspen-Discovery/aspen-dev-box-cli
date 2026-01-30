@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -32,7 +31,7 @@ and pulls all images defined in their services.`,
 			defer runner.Close()
 
 			ctx := context.Background()
-			projectsDir := config.GetProjectsDir()
+			projectsDir := cfg.ProjectsDir
 
 			return filepath.Walk(projectsDir, func(path string, info os.FileInfo, err error) error {
 				if err != nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -24,7 +23,7 @@ This command compiles the main.less file into main.css in the specified director
 Use the --rtl flag to compile RTL (right-to-left) CSS files.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rtl, _ := cmd.Flags().GetBool("rtl")
-			cssDir := config.GetCSSDir(rtl)
+			cssDir := cfg.CSSDir(rtl)
 
 			if _, err := os.Stat(cssDir); os.IsNotExist(err) {
 				return fmt.Errorf("CSS directory does not exist: %s", cssDir)
@@ -37,8 +36,8 @@ Use the --rtl flag to compile RTL (right-to-left) CSS files.`,
 			defer runner.Close()
 
 			result, err := runner.Run(context.Background(), docker.RunConfig{
-				Image:      config.GetLessImage(),
-				Cmd:        []string{config.GetLessInputFile(), config.GetLessOutputFile()},
+				Image:      cfg.LessImage,
+				Cmd:        []string{cfg.LessInputFile, cfg.LessOutputFile},
 				WorkingDir: "/src",
 				Binds:      []string{fmt.Sprintf("%s:/src", cssDir)},
 			})

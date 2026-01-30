@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/compose-spec/compose-go/loader"
@@ -33,17 +32,17 @@ You can run in detached mode, with debugging enabled, or with the database GUI.
 You can also select which ILS to use (koha or evergreen).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			files := []string{config.GetDefaultComposeFile()}
+			files := []string{cfg.DefaultComposeFilePath()}
 
 			if debugging {
-				files = append(files, config.GetDebugComposeFile())
+				files = append(files, cfg.DebugComposeFilePath())
 			}
 
 			if dbgui {
-				files = append(files, config.GetDBGUIComposeFile())
+				files = append(files, cfg.DBGUIComposeFilePath())
 			}
 
-			aspenDocker := config.GetProjectsDir()
+			aspenDocker := cfg.ProjectsDir
 
 			ilsFile, err := getILSComposeFile(aspenDocker, ils, kohaStack)
 			if err != nil {

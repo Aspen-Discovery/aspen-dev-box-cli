@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -41,10 +40,10 @@ You can optionally include indexing logs using the --include-indexing flag.`,
 			}
 			defer runner.Close()
 
-			shellCmd := fmt.Sprintf("cd %s && %s %s", config.GetLogPath(), tailCmd, logsPattern)
+			shellCmd := fmt.Sprintf("cd %s && %s %s", cfg.LogPath, tailCmd, logsPattern)
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
-				Container: config.GetMainContainerName(),
+				Container: cfg.MainContainerName,
 				Cmd:       []string{"/bin/bash", "-c", shellCmd},
 			})
 		},

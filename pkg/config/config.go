@@ -8,217 +8,141 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const (
-	// DefaultDockerComposeFile is the default docker-compose file name
-	DefaultDockerComposeFile = "docker-compose.yml"
-	// DebugDockerComposeFile is the debugging docker-compose file name
-	DebugDockerComposeFile = "docker-compose.debug.yml"
-	// DBGUIDockerComposeFile is the dbgui docker-compose file name
-	DBGUIDockerComposeFile = "docker-compose.dbgui.yml"
-	// MainContainerName is the name of the main container
-	MainContainerName = "containeraspen"
-	// MainContainerWorkDir is the working directory inside the main container
-	MainContainerWorkDir = "/usr/local/aspen-discovery"
-	// DBContainerName is the name of the database container
-	DBContainerName = "aspen-db"
-	// DBName is the name of the database
-	DBName = "aspen"
-	// DBUser is the database username
-	DBUser = "root"
-	// DBPassword is the database password
-	DBPassword = "aspen"
-	// LogPath is the path to the logs directory
-	LogPath = "/var/log/aspen-discovery/test.localhostaspen/"
-	// SupportedShells is a list of supported shells for completion
-	SupportedShells = "bash zsh fish"
-	// JavaBuildImage is the Docker image used for Java builds
-	JavaBuildImage = "adoptopenjdk:11"
-	// AlpineImage is the Docker image used for file operations
-	AlpineImage = "alpine:latest"
-	// JavaSharedLibrariesPath is the path to Java shared libraries
-	JavaSharedLibrariesPath = "/app/code/java_shared_libraries"
-	// ExcludedJarPatterns contains modules that shouldn't be built as JARs (shared libraries only)
-	ExcludedJarPatterns = "java_shared_libraries"
-	// JSWorkDir is the working directory for JavaScript operations
-	JSWorkDir = "/usr/local/aspen-discovery/code/web/interface/themes/responsive/js"
-	// MergeJSScript is the name of the JavaScript merge script
-	MergeJSScript = "merge_javascript.php"
-	// CSSBaseDir is the base directory for CSS files
-	CSSBaseDir = "/code/web/interface/themes/responsive/css"
-	// CSSRTLSuffix is the suffix for RTL CSS directory
-	CSSRTLSuffix = "-rtl"
-	// LessImage is the Docker image used for LESS compilation
-	LessImage = "ghcr.io/sndsgd/less"
-	// LessInputFile is the input LESS file
-	LessInputFile = "main.less"
-	// LessOutputFile is the output CSS file
-	LessOutputFile = "main.css"
-)
+// Config holds all application configuration
+type Config struct {
+	// Required - from environment
+	ProjectsDir   string
+	AspenCloneDir string
 
-// getBinaryPath returns the absolute path to the running binary
-func getBinaryPath() (string, error) {
-	ex, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("failed to get executable path: %w", err)
-	}
-	return filepath.Dir(ex), nil
+	// Docker compose files
+	DefaultComposeFile string
+	DebugComposeFile   string
+	DBGUIComposeFile   string
+
+	// Container settings
+	MainContainerName    string
+	MainContainerWorkDir string
+	DBContainerName      string
+
+	// Database settings
+	DBName     string
+	DBUser     string
+	DBPassword string
+
+	// Paths
+	LogPath            string
+	JSWorkDir          string
+	CSSBaseDir         string
+	JavaSharedLibsPath string
+
+	// Docker images
+	JavaBuildImage string
+	AlpineImage    string
+	LessImage      string
+
+	// Build settings
+	ExcludedJarPatterns []string
+	MergeJSScript       string
+	LessInputFile       string
+	LessOutputFile      string
 }
 
-// loadEnvFile attempts to load the .env file relative to the binary location
-func loadEnvFile() error {
-	binaryPath, err := getBinaryPath()
-	if err != nil {
-		return err
+// Load reads configuration from environment and .env file
+func Load() (*Config, error) {
+	if err := loadEnvFile(); err != nil {
+		return nil, err
 	}
 
-	// Go up two directories from the binary location to find the .env file
-	// binary is in folder/bin/architecture/binary, .env is in folder/.env
-	envPath := filepath.Join(filepath.Dir(filepath.Dir(binaryPath)), ".env")
+	cfg := &Config{
+		// Defaults
+		DefaultComposeFile:   "docker-compose.yml",
+		DebugComposeFile:     "docker-compose.debug.yml",
+		DBGUIComposeFile:     "docker-compose.dbgui.yml",
+		MainContainerName:    "containeraspen",
+		MainContainerWorkDir: "/usr/local/aspen-discovery",
+		DBContainerName:      "aspen-db",
+		DBName:               "aspen",
+		DBUser:               "root",
+		DBPassword:           "aspen",
+		LogPath:              "/var/log/aspen-discovery/test.localhostaspen/",
+		JSWorkDir:            "/usr/local/aspen-discovery/code/web/interface/themes/responsive/js",
+		CSSBaseDir:           "/code/web/interface/themes/responsive/css",
+		JavaSharedLibsPath:   "/app/code/java_shared_libraries",
+		JavaBuildImage:       "adoptopenjdk:11",
+		AlpineImage:          "alpine:latest",
+		LessImage:            "ghcr.io/sndsgd/less",
+		ExcludedJarPatterns:  []string{"java_shared_libraries"},
+		MergeJSScript:        "merge_javascript.php",
+		LessInputFile:        "main.less",
+		LessOutputFile:       "main.css",
+	}
 
-	// Try to load the .env file, but don't error if it doesn't exist
-	err = godotenv.Load(envPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("error loading .env file: %w", err)
+	// Required environment variables
+	cfg.ProjectsDir = os.Getenv("ASPEN_DOCKER")
+	if cfg.ProjectsDir == "" {
+		return nil, fmt.Errorf("ASPEN_DOCKER environment variable not set")
+	}
+
+	cfg.AspenCloneDir = os.Getenv("ASPEN_CLONE")
+	if cfg.AspenCloneDir == "" {
+		return nil, fmt.Errorf("ASPEN_CLONE environment variable not set")
+	}
+
+	return cfg, nil
+}
+
+// loadEnvFile attempts to load .env file relative to binary location
+func loadEnvFile() error {
+	ex, err := os.Executable()
+	if err != nil {
+		return nil // Not fatal - env vars might be set directly
+	}
+
+	binaryDir := filepath.Dir(ex)
+	// binary is in folder/bin/architecture/binary, .env is in folder/.env
+	envPath := filepath.Join(filepath.Dir(filepath.Dir(binaryDir)), ".env")
+
+	if err := godotenv.Load(envPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("load .env file: %w", err)
 	}
 	return nil
 }
 
-// GetProjectsDir returns the ASPEN_DOCKER environment variable or falls back to .env file
-func GetProjectsDir() string {
-	// Try to load .env file first
-	_ = loadEnvFile()
-
-	projectsDir := os.Getenv("ASPEN_DOCKER")
-	if projectsDir == "" {
-		fmt.Println("Error: ASPEN_DOCKER environment variable not set.")
-		os.Exit(1)
-	}
-	return projectsDir
+// ComposeFilePath returns full path to a compose file
+func (c *Config) ComposeFilePath(filename string) string {
+	return filepath.Join(c.ProjectsDir, filename)
 }
 
-// GetAspenCloneDir returns the ASPEN_CLONE environment variable or falls back to .env file
-func GetAspenCloneDir() string {
-	// Try to load .env file first
-	_ = loadEnvFile()
-
-	aspenClone := os.Getenv("ASPEN_CLONE")
-	if aspenClone == "" {
-		fmt.Println("Error: ASPEN_CLONE environment variable not set.")
-		os.Exit(1)
-	}
-	return aspenClone
+// DefaultComposeFilePath returns path to the default docker-compose file
+func (c *Config) DefaultComposeFilePath() string {
+	return c.ComposeFilePath(c.DefaultComposeFile)
 }
 
-// GetComposeFilePath returns the full path to a docker-compose file
-func GetComposeFilePath(filename string) string {
-	return filepath.Join(GetProjectsDir(), filename)
+// DebugComposeFilePath returns path to the debug docker-compose file
+func (c *Config) DebugComposeFilePath() string {
+	return c.ComposeFilePath(c.DebugComposeFile)
 }
 
-// GetDefaultComposeFile returns the path to the default docker-compose file
-func GetDefaultComposeFile() string {
-	return GetComposeFilePath(DefaultDockerComposeFile)
+// DBGUIComposeFilePath returns path to the dbgui docker-compose file
+func (c *Config) DBGUIComposeFilePath() string {
+	return c.ComposeFilePath(c.DBGUIComposeFile)
 }
 
-// GetDebugComposeFile returns the path to the debug docker-compose file
-func GetDebugComposeFile() string {
-	return GetComposeFilePath(DebugDockerComposeFile)
+// DBConnectionString returns the mariadb connection string
+func (c *Config) DBConnectionString() string {
+	return fmt.Sprintf("-u%s -p%s %s", c.DBUser, c.DBPassword, c.DBName)
 }
 
-// GetDBGUIComposeFile returns the path to the dbgui docker-compose file
-func GetDBGUIComposeFile() string {
-	return GetComposeFilePath(DBGUIDockerComposeFile)
-}
-
-// GetMainContainerName returns the name of the main container
-func GetMainContainerName() string {
-	return MainContainerName
-}
-
-// GetMainContainerWorkDir returns the working directory inside the main container
-func GetMainContainerWorkDir() string {
-	return MainContainerWorkDir
-}
-
-// GetDBContainerName returns the name of the database container
-func GetDBContainerName() string {
-	return DBContainerName
-}
-
-// GetDBConnectionString returns the connection string for the database
-func GetDBConnectionString() string {
-	return fmt.Sprintf("-u%s -p%s %s", DBUser, DBPassword, DBName)
-}
-
-// GetLogPath returns the path to the logs directory
-func GetLogPath() string {
-	return LogPath
-}
-
-// GetSupportedShells returns the list of supported shells
-func GetSupportedShells() string {
-	return SupportedShells
-}
-
-// ValidateShell validates if the given shell is supported
-func ValidateShell(shell string) bool {
-	switch shell {
-	case "bash", "zsh", "fish":
-		return true
-	default:
-		return false
-	}
-}
-
-// GetJavaBuildImage returns the Docker image used for Java builds
-func GetJavaBuildImage() string {
-	return JavaBuildImage
-}
-
-// GetAlpineImage returns the Docker image used for file operations
-func GetAlpineImage() string {
-	return AlpineImage
-}
-
-// GetJavaSharedLibrariesPath returns the path to Java shared libraries
-func GetJavaSharedLibrariesPath() string {
-	return JavaSharedLibrariesPath
-}
-
-// GetExcludedJarPatterns returns the list of patterns to exclude from JAR builds
-func GetExcludedJarPatterns() string {
-	return ExcludedJarPatterns
-}
-
-// GetJSWorkDir returns the working directory for JavaScript operations
-func GetJSWorkDir() string {
-	return JSWorkDir
-}
-
-// GetMergeJSScript returns the name of the JavaScript merge script
-func GetMergeJSScript() string {
-	return MergeJSScript
-}
-
-// GetCSSDir returns the path to the CSS directory
-func GetCSSDir(rtl bool) string {
-	dir := filepath.Join(GetAspenCloneDir(), CSSBaseDir)
+// CSSDir returns the path to CSS directory, with optional RTL suffix
+func (c *Config) CSSDir(rtl bool) string {
+	dir := filepath.Join(c.AspenCloneDir, c.CSSBaseDir)
 	if rtl {
-		dir += CSSRTLSuffix
+		dir += "-rtl"
 	}
 	return dir
 }
 
-// GetLessImage returns the Docker image used for LESS compilation
-func GetLessImage() string {
-	return LessImage
-}
-
-// GetLessInputFile returns the input LESS file
-func GetLessInputFile() string {
-	return LessInputFile
-}
-
-// GetLessOutputFile returns the output CSS file
-func GetLessOutputFile() string {
-	return LessOutputFile
+// CodeDir returns the path to the code directory
+func (c *Config) CodeDir() string {
+	return filepath.Join(c.AspenCloneDir, "code")
 }

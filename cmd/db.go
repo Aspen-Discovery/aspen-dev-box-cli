@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -28,8 +27,8 @@ This command provides direct access to the database for running SQL queries and 
 			defer runner.Close()
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
-				Container: config.GetDBContainerName(),
-				Cmd:       []string{"/bin/bash", "-c", "mariadb " + config.GetDBConnectionString()},
+				Container: cfg.DBContainerName,
+				Cmd:       []string{"/bin/bash", "-c", "mariadb " + cfg.DBConnectionString()},
 			})
 		},
 	}
