@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/spf13/cobra"
 )
 
@@ -19,17 +20,18 @@ func ShellCommand() *cobra.Command {
 		Short: "Open a shell inside the main container",
 		Long: `Open an interactive shell inside the main container.
 This command opens a bash shell in the main container with the working directory set to the Aspen Discovery installation.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			command := exec.Command("docker", "exec", "-itw", config.GetMainContainerWorkDir(), config.GetMainContainerName(), "/bin/bash")
-			command.Dir = config.GetProjectsDir()
-			command.Stdin = os.Stdin
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Printf("Error opening a shell in the container: %v\n", err)
-				os.Exit(1)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			runner, err := docker.NewRunner()
+			if err != nil {
+				return fmt.Errorf("initialize docker: %w", err)
 			}
+			defer runner.Close()
+
+			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
+				Container:  config.GetMainContainerName(),
+				Cmd:        []string{"/bin/bash"},
+				WorkingDir: config.GetMainContainerWorkDir(),
+			})
 		},
 	}
 }

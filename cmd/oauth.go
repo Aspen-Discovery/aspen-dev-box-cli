@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/spf13/cobra"
 )
 
@@ -21,49 +22,45 @@ func OAuthCommand() *cobra.Command {
 This command updates the OAuth credentials in the database for the specified driver.
 By default, it updates the Koha driver credentials.`,
 		Args: cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
-			oAuthClientId := args[0]
-			oAuthClientSecret := args[1]
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientID := args[0]
+			clientSecret := args[1]
 
-			print, _ := cmd.Flags().GetBool("print")
+			printRows, _ := cmd.Flags().GetBool("print")
 			driver, _ := cmd.Flags().GetString("driver")
 			if driver == "" {
 				driver = "Koha"
 			}
 
-			// Build the SQL query
 			sql := fmt.Sprintf(`
-			SET @update_count = 0;
-			UPDATE account_profiles 
-			SET oAuthClientId='%s', 
-			oAuthClientSecret='%s' 
-			WHERE driver='%s';
-			SET @update_count = ROW_COUNT();
+SET @update_count = 0;
+UPDATE account_profiles 
+SET oAuthClientId='%s', 
+oAuthClientSecret='%s' 
+WHERE driver='%s';
+SET @update_count = ROW_COUNT();
+SELECT @update_count as Changed_Rows;
+`, clientID, clientSecret, driver)
 
-			SELECT @update_count as Changed_Rows;
-			`, oAuthClientId, oAuthClientSecret, driver)
-
-			if print {
+			if printRows {
 				sql += fmt.Sprintf(`
-				SELECT * FROM account_profiles 
-				WHERE driver='%s'
-				`, driver)
+SELECT * FROM account_profiles 
+WHERE driver='%s'
+`, driver)
 			}
 
-			// Execute the SQL query in the database container
-			dockerCmd := exec.Command("docker", "exec", "-it",
-				config.GetDBContainerName(),
-				"/bin/bash", "-c",
-				fmt.Sprintf("echo \"%s\" | mariadb %s", sql, config.GetDBConnectionString()))
-
-			dockerCmd.Stdin = os.Stdin
-			dockerCmd.Stdout = os.Stdout
-			dockerCmd.Stderr = os.Stderr
-
-			if err := dockerCmd.Run(); err != nil {
-				fmt.Printf("Error updating OAuth credentials: %v\n", err)
-				os.Exit(1)
+			runner, err := docker.NewRunner()
+			if err != nil {
+				return fmt.Errorf("initialize docker: %w", err)
 			}
+			defer runner.Close()
+
+			shellCmd := fmt.Sprintf("echo \"%s\" | mariadb %s", sql, config.GetDBConnectionString())
+
+			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
+				Container: config.GetDBContainerName(),
+				Cmd:       []string{"/bin/bash", "-c", shellCmd},
+			})
 		},
 	}
 

@@ -5,11 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/term"
 )
 
 type RunConfig struct {
@@ -27,8 +29,19 @@ type RunResult struct {
 	ExitCode int64
 }
 
+type ExecConfig struct {
+	Container  string
+	Cmd        []string
+	WorkingDir string
+	User       string
+	Env        []string
+}
+
 type Runner interface {
 	Run(ctx context.Context, cfg RunConfig) (*RunResult, error)
+	Exec(ctx context.Context, cfg ExecConfig) (*RunResult, error)
+	ExecInteractive(ctx context.Context, cfg ExecConfig) error
+	Pull(ctx context.Context, imageName string) error
 	Close() error
 }
 
@@ -46,6 +59,89 @@ func NewRunner() (*SDKRunner, error) {
 
 func (r *SDKRunner) Close() error {
 	return r.client.Close()
+}
+
+func (r *SDKRunner) Exec(ctx context.Context, cfg ExecConfig) (*RunResult, error) {
+	execCfg := container.ExecOptions{
+		Cmd:          cfg.Cmd,
+		WorkingDir:   cfg.WorkingDir,
+		User:         cfg.User,
+		Env:          cfg.Env,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execID, err := r.client.ContainerExecCreate(ctx, cfg.Container, execCfg)
+	if err != nil {
+		return nil, fmt.Errorf("create exec: %w", err)
+	}
+
+	resp, err := r.client.ContainerExecAttach(ctx, execID.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("attach exec: %w", err)
+	}
+	defer resp.Close()
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	stdcopy.StdCopy(&stdoutBuf, &stderrBuf, resp.Reader)
+
+	inspect, err := r.client.ContainerExecInspect(ctx, execID.ID)
+	if err != nil {
+		return nil, fmt.Errorf("inspect exec: %w", err)
+	}
+
+	return &RunResult{
+		Stdout:   stdoutBuf.String(),
+		Stderr:   stderrBuf.String(),
+		ExitCode: int64(inspect.ExitCode),
+	}, nil
+}
+
+func (r *SDKRunner) ExecInteractive(ctx context.Context, cfg ExecConfig) error {
+	execCfg := container.ExecOptions{
+		Cmd:          cfg.Cmd,
+		WorkingDir:   cfg.WorkingDir,
+		User:         cfg.User,
+		Env:          cfg.Env,
+		Tty:          true,
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execID, err := r.client.ContainerExecCreate(ctx, cfg.Container, execCfg)
+	if err != nil {
+		return fmt.Errorf("create exec: %w", err)
+	}
+
+	resp, err := r.client.ContainerExecAttach(ctx, execID.ID, container.ExecAttachOptions{Tty: true})
+	if err != nil {
+		return fmt.Errorf("attach exec: %w", err)
+	}
+	defer resp.Close()
+
+	inFd := os.Stdin.Fd()
+	if term.IsTerminal(inFd) {
+		oldState, err := term.MakeRaw(inFd)
+		if err != nil {
+			return fmt.Errorf("make raw terminal: %w", err)
+		}
+		defer term.RestoreTerminal(inFd, oldState)
+	}
+
+	outputDone := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(os.Stdout, resp.Reader)
+		outputDone <- err
+	}()
+
+	go func() {
+		io.Copy(resp.Conn, os.Stdin)
+		resp.CloseWrite()
+	}()
+
+	<-outputDone
+	return nil
 }
 
 func (r *SDKRunner) Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
@@ -78,6 +174,16 @@ func (r *SDKRunner) Run(ctx context.Context, cfg RunConfig) (*RunResult, error) 
 		Stderr:   stderr,
 		ExitCode: exitCode,
 	}, nil
+}
+
+func (r *SDKRunner) Pull(ctx context.Context, imageName string) error {
+	reader, err := r.client.ImagePull(ctx, imageName, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("pull image %s: %w", imageName, err)
+	}
+	defer reader.Close()
+	io.Copy(os.Stdout, reader)
+	return nil
 }
 
 func (r *SDKRunner) pullImageIfNeeded(ctx context.Context, imageName string) error {

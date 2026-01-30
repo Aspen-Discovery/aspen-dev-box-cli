@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/spf13/cobra"
 )
@@ -29,66 +31,37 @@ func UpCommand() *cobra.Command {
 		Long: `Bring up the Docker Compose project with optional configurations.
 You can run in detached mode, with debugging enabled, or with the database GUI.
 You can also select which ILS to use (koha or evergreen).`,
-		Run: func(cmd *cobra.Command, args []string) {
-			commandArgs := []string{"compose", "-f", config.GetDefaultComposeFile()}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			files := []string{config.GetDefaultComposeFile()}
 
 			if debugging {
-				commandArgs = append(commandArgs, "-f", config.GetDebugComposeFile())
+				files = append(files, config.GetDebugComposeFile())
 			}
 
 			if dbgui {
-				commandArgs = append(commandArgs, "-f", config.GetDBGUIComposeFile())
+				files = append(files, config.GetDBGUIComposeFile())
 			}
 
-			// Get ASPEN_DOCKER directory
-			aspenDocker := os.Getenv("ASPEN_DOCKER")
-			if aspenDocker == "" {
-				fmt.Println("Error: ASPEN_DOCKER environment variable is not set")
-				os.Exit(1)
-			}
+			aspenDocker := config.GetProjectsDir()
 
-			// Add ILS-specific compose file
-			switch ils {
-			case "koha":
-				if kohaStack != "" {
-					os.Setenv("KOHA_STACK", kohaStack)
-				}
-				kohaOverride := filepath.Join(aspenDocker, "docker-compose.koha.yml")
-				if _, err := os.Stat(kohaOverride); err != nil {
-					fmt.Printf("Error: Koha override file not found at %s\n", kohaOverride)
-					os.Exit(1)
-				}
-				commandArgs = append(commandArgs, "-f", kohaOverride)
-			case "evergreen":
-				evergreenOverride := filepath.Join(aspenDocker, "docker-compose.evergreen.yml")
-				if _, err := os.Stat(evergreenOverride); err != nil {
-					fmt.Printf("Error: Evergreen override file not found at %s\n", evergreenOverride)
-					os.Exit(1)
-				}
-				commandArgs = append(commandArgs, "-f", evergreenOverride)
-			default:
-				fmt.Printf("Error: Unsupported ILS '%s'. Supported values: koha, evergreen\n", ils)
-				os.Exit(1)
+			ilsFile, err := getILSComposeFile(aspenDocker, ils, kohaStack)
+			if err != nil {
+				return err
 			}
-
-			commandArgs = append(commandArgs, "up")
-
-			if detached {
-				commandArgs = append(commandArgs, "-d")
-			}
+			files = append(files, ilsFile)
 
 			if pullUpdated {
-				pullImages(commandArgs)
+				if err := pullImagesFromFiles(files); err != nil {
+					return err
+				}
 			}
 
-			command := exec.Command("docker", commandArgs...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
+			compose := docker.NewCompose(docker.ComposeConfig{
+				Files:    files,
+				Detached: detached,
+			})
 
-			if err := command.Run(); err != nil {
-				fmt.Printf("Error bringing up the project: %v\n", err)
-				os.Exit(1)
-			}
+			return compose.Up()
 		},
 	}
 
@@ -102,49 +75,72 @@ You can also select which ILS to use (koha or evergreen).`,
 	return cmd
 }
 
-func pullImages(commandArgs []string) {
-	for i, arg := range commandArgs {
-		if arg == "-f" && i+1 < len(commandArgs) {
-			composeFile := commandArgs[i+1]
-			composeFileContent, err := os.ReadFile(composeFile)
-			if err != nil {
-				fmt.Printf("Error reading docker-compose file: %v\n", err)
-				os.Exit(1)
-			}
+func getILSComposeFile(aspenDocker, ils, kohaStack string) (string, error) {
+	switch ils {
+	case "koha":
+		if kohaStack != "" {
+			os.Setenv("KOHA_STACK", kohaStack)
+		}
+		path := filepath.Join(aspenDocker, "docker-compose.koha.yml")
+		if _, err := os.Stat(path); err != nil {
+			return "", fmt.Errorf("Koha override file not found at %s", path)
+		}
+		return path, nil
 
-			loadedConfig, err := loader.ParseYAML(composeFileContent)
-			if err != nil {
-				fmt.Printf("Error parsing docker-compose file: %v\n", err)
-				os.Exit(1)
-			}
+	case "evergreen":
+		path := filepath.Join(aspenDocker, "docker-compose.evergreen.yml")
+		if _, err := os.Stat(path); err != nil {
+			return "", fmt.Errorf("Evergreen override file not found at %s", path)
+		}
+		return path, nil
 
-			services, ok := loadedConfig["services"].(map[string]interface{})
+	default:
+		return "", fmt.Errorf("unsupported ILS '%s'. Supported values: koha, evergreen", ils)
+	}
+}
+
+func pullImagesFromFiles(files []string) error {
+	runner, err := docker.NewRunner()
+	if err != nil {
+		return fmt.Errorf("initialize docker: %w", err)
+	}
+	defer runner.Close()
+
+	ctx := context.Background()
+
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", file, err)
+		}
+
+		loadedConfig, err := loader.ParseYAML(content)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", file, err)
+		}
+
+		services, ok := loadedConfig["services"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, service := range services {
+			serviceMap, ok := service.(map[string]interface{})
 			if !ok {
-				fmt.Println("No services found in docker-compose file")
-				os.Exit(1)
+				continue
 			}
 
-			for _, service := range services {
-				serviceMap, ok := service.(map[string]interface{})
-				if !ok {
-					fmt.Println("Invalid service format in docker-compose file")
-					os.Exit(1)
-				}
+			imageName, ok := serviceMap["image"].(string)
+			if !ok {
+				continue
+			}
 
-				imageName, ok := serviceMap["image"].(string)
-				if !ok {
-					fmt.Println("No image name found for service in docker-compose file")
-					os.Exit(1)
-				}
-
-				pullCmd := exec.Command("docker", "pull", imageName)
-				pullCmd.Stdout = os.Stdout
-				pullCmd.Stderr = os.Stderr
-				if err := pullCmd.Run(); err != nil {
-					fmt.Printf("Error pulling image %s: %v\n", imageName, err)
-					os.Exit(1)
-				}
+			fmt.Printf("Pulling image: %s\n", imageName)
+			if err := runner.Pull(ctx, imageName); err != nil {
+				return fmt.Errorf("pull %s: %w", imageName, err)
 			}
 		}
 	}
+
+	return nil
 }

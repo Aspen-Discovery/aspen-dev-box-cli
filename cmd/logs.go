@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/spf13/cobra"
 )
 
@@ -20,37 +21,32 @@ func LogsCommand() *cobra.Command {
 		Long: `View logs from the main container.
 This command allows you to view and follow logs in real-time.
 You can optionally include indexing logs using the --include-indexing flag.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			includeIndexingLogs, _ := cmd.Flags().GetBool("include-indexing")
+		RunE: func(cmd *cobra.Command, args []string) error {
+			includeIndexing, _ := cmd.Flags().GetBool("include-indexing")
 			follow, _ := cmd.Flags().GetBool("follow")
 
-			// Build the logs path pattern
 			logsPattern := "./*"
-			if includeIndexingLogs {
+			if includeIndexing {
 				logsPattern += " ./logs/*"
 			}
 
-			// Build the tail command
 			tailCmd := "tail"
 			if follow {
 				tailCmd += " -f"
 			}
 
-			// Execute the command in the container
-			dockerCmd := exec.Command("docker", "exec", "-it",
-				config.GetMainContainerName(),
-				"/bin/bash", "-c",
-				fmt.Sprintf("(cd %s; %s %s)", config.GetLogPath(), tailCmd, logsPattern))
-
-			dockerCmd.Dir = config.GetProjectsDir()
-			dockerCmd.Stdin = os.Stdin
-			dockerCmd.Stdout = os.Stdout
-			dockerCmd.Stderr = os.Stderr
-
-			if err := dockerCmd.Run(); err != nil {
-				fmt.Printf("Error viewing logs: %v\n", err)
-				os.Exit(1)
+			runner, err := docker.NewRunner()
+			if err != nil {
+				return fmt.Errorf("initialize docker: %w", err)
 			}
+			defer runner.Close()
+
+			shellCmd := fmt.Sprintf("cd %s && %s %s", config.GetLogPath(), tailCmd, logsPattern)
+
+			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
+				Container: config.GetMainContainerName(),
+				Cmd:       []string{"/bin/bash", "-c", shellCmd},
+			})
 		},
 	}
 

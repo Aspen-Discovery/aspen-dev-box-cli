@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/spf13/cobra"
 )
 
@@ -19,15 +17,11 @@ func DownCommand() *cobra.Command {
 		Short: "Bring down the Docker Compose project",
 		Long: `Bring down the Docker Compose project and remove orphaned containers.
 This command stops and removes all containers defined in the docker-compose file.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			command := exec.Command("docker", "compose", "-f", config.GetDefaultComposeFile(), "down", "--remove-orphans")
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Printf("Error bringing down the project: %v\n", err)
-				os.Exit(1)
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			compose := docker.NewCompose(docker.ComposeConfig{
+				Files: []string{config.GetDefaultComposeFile()},
+			})
+			return compose.Down()
 		},
 	}
 }

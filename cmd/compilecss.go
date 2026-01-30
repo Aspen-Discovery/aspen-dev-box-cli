@@ -1,19 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
+
+	"adb/pkg/config"
+	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
-	"adb/pkg/config"
 )
 
 func init() {
 	rootCmd.AddCommand(CSSCommand())
 }
 
-// CSSCommand returns the command for compiling CSS
 func CSSCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "compilecss",
@@ -21,35 +22,43 @@ func CSSCommand() *cobra.Command {
 		Long: `Compile CSS files using LESS.
 This command compiles the main.less file into main.css in the specified directory.
 Use the --rtl flag to compile RTL (right-to-left) CSS files.`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			rtl, _ := cmd.Flags().GetBool("rtl")
 			cssDir := config.GetCSSDir(rtl)
 
-			// Check if the CSS directory exists
 			if _, err := os.Stat(cssDir); os.IsNotExist(err) {
-				fmt.Printf("Error: CSS directory does not exist: %s\n", cssDir)
-				os.Exit(1)
+				return fmt.Errorf("CSS directory does not exist: %s", cssDir)
 			}
 
-			// Run the LESS compilation
-			dockerCmd := exec.Command("docker", "run", "--rm",
-				"-v", fmt.Sprintf("%s:/src", cssDir),
-				config.GetLessImage(),
-				config.GetLessInputFile(), config.GetLessOutputFile())
+			runner, err := docker.NewRunner()
+			if err != nil {
+				return fmt.Errorf("initialize docker: %w", err)
+			}
+			defer runner.Close()
 
-			dockerCmd.Stdout = os.Stdout
-			dockerCmd.Stderr = os.Stderr
+			result, err := runner.Run(context.Background(), docker.RunConfig{
+				Image: config.GetLessImage(),
+				Cmd:   []string{config.GetLessInputFile(), config.GetLessOutputFile()},
+				Binds: []string{fmt.Sprintf("%s:/src", cssDir)},
+			})
+			if err != nil {
+				return fmt.Errorf("compile CSS: %w", err)
+			}
 
-			if err := dockerCmd.Run(); err != nil {
-				fmt.Printf("Error compiling CSS: %v\n", err)
-				os.Exit(1)
+			fmt.Print(result.Stdout)
+			if result.Stderr != "" {
+				fmt.Fprint(os.Stderr, result.Stderr)
+			}
+
+			if result.ExitCode != 0 {
+				return fmt.Errorf("compilation failed with exit code %d", result.ExitCode)
 			}
 
 			fmt.Printf("Successfully compiled CSS in %s\n", cssDir)
+			return nil
 		},
 	}
 
 	cmd.Flags().BoolP("rtl", "r", false, "Compile RTL (right-to-left) CSS files")
-
 	return cmd
 }

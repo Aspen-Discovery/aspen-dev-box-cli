@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/spf13/cobra"
 )
 
@@ -19,17 +20,17 @@ func DBCommand() *cobra.Command {
 		Short: "Opens the database shell",
 		Long: `Opens an interactive MariaDB shell connected to the Aspen database.
 This command provides direct access to the database for running SQL queries and managing data.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			command := exec.Command("docker", "exec", "-it", config.GetDBContainerName(), "/bin/bash", "-c", "mariadb "+config.GetDBConnectionString())
-			command.Dir = config.GetProjectsDir()
-			command.Stdin = os.Stdin
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Printf("Error opening database shell: %v\n", err)
-				os.Exit(1)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			runner, err := docker.NewRunner()
+			if err != nil {
+				return fmt.Errorf("initialize docker: %w", err)
 			}
+			defer runner.Close()
+
+			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
+				Container: config.GetDBContainerName(),
+				Cmd:       []string{"/bin/bash", "-c", "mariadb " + config.GetDBConnectionString()},
+			})
 		},
 	}
 }

@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/spf13/cobra"
 )
 
@@ -19,15 +21,32 @@ func MergeJSCommand() *cobra.Command {
 		Short: "Merge JavaScript files",
 		Long: `Merge JavaScript files using the merge_javascript.php script.
 This command runs the merge script inside the main container to combine and minify JavaScript files.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			command := exec.Command("docker", "exec", "-w", config.GetJSWorkDir(), config.GetMainContainerName(), "php", config.GetMergeJSScript())
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Printf("Error running the merge_javascript.php command: %v\n", err)
-				os.Exit(1)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			runner, err := docker.NewRunner()
+			if err != nil {
+				return fmt.Errorf("initialize docker: %w", err)
 			}
+			defer runner.Close()
+
+			result, err := runner.Exec(context.Background(), docker.ExecConfig{
+				Container:  config.GetMainContainerName(),
+				Cmd:        []string{"php", config.GetMergeJSScript()},
+				WorkingDir: config.GetJSWorkDir(),
+			})
+			if err != nil {
+				return fmt.Errorf("merge javascript: %w", err)
+			}
+
+			fmt.Print(result.Stdout)
+			if result.Stderr != "" {
+				fmt.Fprint(os.Stderr, result.Stderr)
+			}
+
+			if result.ExitCode != 0 {
+				return fmt.Errorf("merge failed with exit code %d", result.ExitCode)
+			}
+
+			return nil
 		},
 	}
 }

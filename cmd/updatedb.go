@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
+
 	"github.com/spf13/cobra"
 )
 
@@ -14,33 +15,30 @@ func init() {
 }
 
 func UpdateDBCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "updatedb",
 		Short: "Run database updates",
 		Long: `Run any pending database updates for Aspen Discovery.
 This command triggers the database update process by calling the SystemAPI endpoint.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			// Build the curl command to trigger database updates
+		RunE: func(cmd *cobra.Command, args []string) error {
+			runner, err := docker.NewRunner()
+			if err != nil {
+				return fmt.Errorf("initialize docker: %w", err)
+			}
+			defer runner.Close()
+
 			curlCmd := "curl -k http://localhost/API/SystemAPI?method=runPendingDatabaseUpdates"
 
-			// Execute the command in the main container
-			dockerCmd := exec.Command("docker", "exec", "-it",
-				config.GetMainContainerName(),
-				"/bin/bash", "-c", curlCmd)
-
-			dockerCmd.Dir = config.GetProjectsDir()
-			dockerCmd.Stdin = os.Stdin
-			dockerCmd.Stdout = os.Stdout
-			dockerCmd.Stderr = os.Stderr
-
-			if err := dockerCmd.Run(); err != nil {
-				fmt.Printf("Error running database updates: %v\n", err)
-				os.Exit(1)
+			err = runner.ExecInteractive(context.Background(), docker.ExecConfig{
+				Container: config.GetMainContainerName(),
+				Cmd:       []string{"/bin/bash", "-c", curlCmd},
+			})
+			if err != nil {
+				return err
 			}
 
-			fmt.Println("Database updates completed successfully")
+			fmt.Println("\nDatabase updates completed successfully")
+			return nil
 		},
 	}
-
-	return cmd
 }
