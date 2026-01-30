@@ -9,7 +9,7 @@ import (
 	"adb/pkg/docker"
 	"adb/pkg/jar"
 
-	"github.com/manifoldco/promptui"
+	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
 	"github.com/spf13/cobra"
 )
 
@@ -58,19 +58,21 @@ func buildSingleJar(ctx context.Context, builder *jar.Builder) error {
 		return fmt.Errorf("list modules: %w", err)
 	}
 
-	prompt := promptui.Select{
-		Label: "Select JAR to build",
-		Items: names,
-		Size:  20,
-	}
-
-	_, selected, err := prompt.Run()
+	idx, err := fuzzyfinder.Find(
+		names,
+		func(i int) string {
+			return names[i]
+		},
+	)
 	if err != nil {
-		return fmt.Errorf("selection cancelled: %w", err)
+		if err == fuzzyfinder.ErrAbort {
+			return fmt.Errorf("selection cancelled")
+		}
+		return fmt.Errorf("fuzzy finder: %w", err)
 	}
 
 	codeDir := fmt.Sprintf("%s/code", config.GetAspenCloneDir())
-	module, err := jar.FindModule(codeDir, selected)
+	module, err := jar.FindModule(codeDir, names[idx])
 	if err != nil {
 		return err
 	}
