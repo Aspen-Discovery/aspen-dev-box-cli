@@ -2,84 +2,63 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 
+	"adb/pkg/compose"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 func init() {
 	rootCmd.AddCommand(PullCommand())
 }
 func PullCommand() *cobra.Command {
-	return &cobra.Command{
+	var debugging bool
+	var dbgui bool
+
+	cmd := &cobra.Command{
 		Use:   "pull",
-		Short: "Pull all images for all docker compose files in the ASPEN_DOCKER directory",
+		Short: "Pull Docker images for selected compose files",
+		Long: `Pull Docker images defined in the selected docker-compose files.
+This command pulls images only from the compose files that match the provided flags,
+similar to how 'adb up' selects which services to start.
+
+Examples:
+  adb pull              # Pull base images only
+  adb pull --dbgui      # Pull base + phpmyadmin images
+  adb pull -g -b        # Pull base + debug + phpmyadmin images`,
 		Run: func(cmd *cobra.Command, args []string) {
-			projectsDir := os.Getenv("ASPEN_DOCKER")
-			if projectsDir == "" {
-				fmt.Println("Error: ASPEN_DOCKER environment variable not set.")
+			// Get compose files based on flags
+			composeFiles, err := compose.GetComposeFiles(compose.Options{
+				Debugging: debugging,
+				DBGui:     dbgui,
+			})
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
 				os.Exit(1)
 			}
 
-			err := filepath.Walk(projectsDir, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					fmt.Printf("Error accessing a path %q: %v\n", path, err)
-					return err
-				}
+			// Build docker compose command with all selected files
+			commandArgs := []string{"compose"}
+			for _, file := range composeFiles {
+				commandArgs = append(commandArgs, "-f", file)
+			}
+			commandArgs = append(commandArgs, "pull")
 
-				if filepath.Ext(path) == ".yml" {
-					// Read the Docker Compose file
-					data, err := ioutil.ReadFile(path)
-					if err != nil {
-						fmt.Printf("Error reading Docker Compose file %s: %v\n", path, err)
-						os.Exit(1)
-					}
+			// Execute docker compose pull
+			command := exec.Command("docker", commandArgs...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
 
-					// Parse the Docker Compose file
-					var composeFile map[string]interface{}
-					err = yaml.Unmarshal(data, &composeFile)
-					if err != nil {
-						fmt.Printf("Error parsing Docker Compose file %s: %v\n", path, err)
-						os.Exit(1)
-					}
-
-					// Extract the services
-					services, ok := composeFile["services"].(map[interface{}]interface{})
-					if !ok {
-						fmt.Printf("Error: Docker Compose file %s does not define any services.\n", path)
-						os.Exit(1)
-					}
-
-					// Pull the image for each service
-					for _, service := range services {
-						serviceMap, ok := service.(map[interface{}]interface{})
-						if ok {
-							image, ok := serviceMap["image"].(string)
-							if ok {
-								pullCmd := exec.Command("docker", "pull", image)
-								pullCmd.Stdout = os.Stdout
-								pullCmd.Stderr = os.Stderr
-
-								err := pullCmd.Run()
-								if err != nil {
-									fmt.Printf("Error pulling Docker image %s: %v\n", image, err)
-									os.Exit(1)
-								}
-							}
-						}
-					}
-				}
-				return nil
-			})
-
-			if err != nil {
-				fmt.Printf("Error walking the path %v: %v\n", projectsDir, err)
+			if err := command.Run(); err != nil {
+				fmt.Printf("Error pulling images: %v\n", err)
 				os.Exit(1)
 			}
 		},
 	}
+
+	cmd.Flags().BoolVarP(&debugging, "debugging", "g", false, "Pull images for debugging compose file")
+	cmd.Flags().BoolVarP(&dbgui, "dbgui", "b", false, "Pull images for dbgui compose file (phpmyadmin)")
+
+	return cmd
 }
