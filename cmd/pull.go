@@ -1,15 +1,9 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 func init() {
@@ -17,77 +11,48 @@ func init() {
 }
 
 func PullCommand() *cobra.Command {
-	return &cobra.Command{
+	var debugging bool
+	var dbgui bool
+	var evergreen bool
+
+	cmd := &cobra.Command{
 		Use:   "pull",
-		Short: "Pull Docker images",
-		Long: `Pull all Docker images defined in docker-compose files.
-This command scans the ASPEN_DOCKER directory for docker-compose files
-and pulls all images defined in their services.`,
+		Short: "Pull Docker images for selected compose files",
+		Long: `Pull Docker images defined in the selected docker-compose files.
+This command pulls images only from the compose files that match the provided flags,
+similar to how 'adb up' selects which services to start.
+
+Examples:
+  adb pull              # Pull base images only
+  adb pull --dbgui      # Pull base + phpmyadmin images
+  adb pull -g -b        # Pull base + debug + phpmyadmin images
+  adb pull --evergreen  # Pull base + evergreen images`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner, err := docker.NewRunner()
-			if err != nil {
-				return fmt.Errorf("initialize docker: %w", err)
+			files := []string{cfg.DefaultComposeFilePath()}
+
+			if debugging {
+				files = append(files, cfg.DebugComposeFilePath())
 			}
-			defer runner.Close()
 
-			ctx := context.Background()
-			projectsDir := cfg.ProjectsDir
+			if dbgui {
+				files = append(files, cfg.DBGUIComposeFilePath())
+			}
 
-			return filepath.Walk(projectsDir, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return fmt.Errorf("access path %q: %w", path, err)
-				}
+			if evergreen {
+				files = append(files, cfg.EvergreenComposeFilePath())
+			}
 
-				if filepath.Ext(path) != ".yml" {
-					return nil
-				}
-
-				images, err := extractImagesFromCompose(path)
-				if err != nil {
-					fmt.Printf("Warning: %v\n", err)
-					return nil
-				}
-
-				for _, img := range images {
-					fmt.Printf("Pulling image: %s\n", img)
-					if err := runner.Pull(ctx, img); err != nil {
-						return fmt.Errorf("pull %s: %w", img, err)
-					}
-				}
-
-				return nil
+			compose := docker.NewCompose(docker.ComposeConfig{
+				Files: files,
 			})
+
+			return compose.Pull(cmd.Context())
 		},
 	}
-}
 
-func extractImagesFromCompose(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
+	cmd.Flags().BoolVarP(&debugging, "debugging", "g", false, "Pull images for debugging compose file")
+	cmd.Flags().BoolVarP(&dbgui, "dbgui", "b", false, "Pull images for dbgui compose file (phpmyadmin)")
+	cmd.Flags().BoolVarP(&evergreen, "evergreen", "e", false, "Pull images for evergreen compose file")
 
-	var composeFile map[string]interface{}
-	if err := yaml.Unmarshal(data, &composeFile); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-
-	services, ok := composeFile["services"].(map[interface{}]interface{})
-	if !ok {
-		return nil, nil
-	}
-
-	var images []string
-	for _, service := range services {
-		serviceMap, ok := service.(map[interface{}]interface{})
-		if !ok {
-			continue
-		}
-
-		if img, ok := serviceMap["image"].(string); ok {
-			images = append(images, img)
-		}
-	}
-
-	return images, nil
+	return cmd
 }

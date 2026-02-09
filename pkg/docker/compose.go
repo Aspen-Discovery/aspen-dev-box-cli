@@ -14,6 +14,7 @@ type ComposeConfig struct {
 
 type Composer interface {
 	Up(ctx context.Context) error
+	Pull(ctx context.Context) error
 	Down(ctx context.Context) error
 }
 
@@ -33,6 +34,12 @@ func (c *Compose) Up(ctx context.Context) error {
 		args = append(args, "-d")
 	}
 
+	return c.run(ctx, args)
+}
+
+func (c *Compose) Pull(ctx context.Context) error {
+	args := c.baseArgs()
+	args = append(args, "pull")
 	return c.run(ctx, args)
 }
 

@@ -15,9 +15,10 @@ type Config struct {
 	AspenCloneDir string
 
 	// Docker compose files
-	DefaultComposeFile string
-	DebugComposeFile   string
-	DBGUIComposeFile   string
+	DefaultComposeFile   string
+	DebugComposeFile     string
+	DBGUIComposeFile     string
+	EvergreenComposeFile string
 
 	// Container settings
 	MainContainerName    string
@@ -58,6 +59,7 @@ func Load() (*Config, error) {
 		DefaultComposeFile:   "docker-compose.yml",
 		DebugComposeFile:     "docker-compose.debug.yml",
 		DBGUIComposeFile:     "docker-compose.dbgui.yml",
+		EvergreenComposeFile: "docker-compose.evergreen.yml",
 		MainContainerName:    "containeraspen",
 		MainContainerWorkDir: "/usr/local/aspen-discovery",
 		DBContainerName:      "aspen-db",
@@ -126,6 +128,11 @@ func (c *Config) DebugComposeFilePath() string {
 // DBGUIComposeFilePath returns path to the dbgui docker-compose file
 func (c *Config) DBGUIComposeFilePath() string {
 	return c.ComposeFilePath(c.DBGUIComposeFile)
+}
+
+// EvergreenComposeFilePath returns path to the evergreen docker-compose file
+func (c *Config) EvergreenComposeFilePath() string {
+	return c.ComposeFilePath(c.EvergreenComposeFile)
 }
 
 // DBConnectionString returns the mariadb connection string
