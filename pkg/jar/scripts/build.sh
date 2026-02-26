@@ -22,7 +22,8 @@ fi
 
 mkdir -p bin
 
-CLASSPATH=$(find /app -name '*.jar' | tr '\n' ':')
+MODULE_JAR="$(pwd)/$(basename "$(pwd)").jar"
+CLASSPATH=$(find /app -name '*.jar' | grep -v "$MODULE_JAR" | tr '\n' ':')
 
 if [ "$NEEDS_SHARED_LIBS" = "true" ]; then
     echo "Compiling with shared libraries..."

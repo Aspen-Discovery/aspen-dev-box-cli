@@ -32,11 +32,6 @@ func DiscoverModules(codeDir string, excludePatterns []string) ([]Module, error)
 		}
 
 		modulePath := filepath.Join(codeDir, name)
-		jarFile := filepath.Join(modulePath, name+".jar")
-
-		if _, err := os.Stat(jarFile); os.IsNotExist(err) {
-			continue
-		}
 
 		module, err := analyzeModule(name, modulePath)
 		if err != nil {
