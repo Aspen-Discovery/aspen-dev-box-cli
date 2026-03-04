@@ -130,6 +130,11 @@ func (r *SDKRunner) ExecInteractive(ctx context.Context, cfg ExecConfig) error {
 		defer term.RestoreTerminal(inFd, oldState)
 	}
 
+	r.resizeExecTTY(ctx, execID.ID, inFd)
+
+	stopResize := r.monitorResizeEvents(ctx, execID.ID, inFd)
+	defer stopResize()
+
 	outputDone := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(os.Stdout, resp.Reader)
@@ -143,6 +148,17 @@ func (r *SDKRunner) ExecInteractive(ctx context.Context, cfg ExecConfig) error {
 
 	<-outputDone
 	return nil
+}
+
+func (r *SDKRunner) resizeExecTTY(ctx context.Context, execID string, fd uintptr) {
+	ws, err := term.GetWinsize(fd)
+	if err != nil {
+		return
+	}
+	_ = r.client.ContainerExecResize(ctx, execID, container.ResizeOptions{
+		Height: uint(ws.Height),
+		Width:  uint(ws.Width),
+	})
 }
 
 func (r *SDKRunner) Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
