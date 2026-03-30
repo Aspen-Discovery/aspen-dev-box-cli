@@ -30,6 +30,7 @@ This command opens a bash shell in the main container with the working directory
 				Container:  cfg.MainContainerName,
 				Cmd:        []string{"/bin/bash"},
 				WorkingDir: cfg.MainContainerWorkDir,
+				User:       "www-data",
 			})
 		},
 	}
