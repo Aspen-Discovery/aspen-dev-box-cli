@@ -110,6 +110,21 @@ func loadEnvFile() error {
 	return nil
 }
 
+func (c *Config) ApplyContainerEnv(env map[string]string) {
+	if v, ok := env["SITE_NAME"]; ok {
+		c.LogPath = "/var/log/aspen-discovery/" + v + "/"
+	}
+	if v, ok := env["DATABASE_NAME"]; ok {
+		c.DBName = v
+	}
+	if v, ok := env["DATABASE_USER"]; ok {
+		c.DBUser = v
+	}
+	if v, ok := env["DATABASE_PASSWORD"]; ok {
+		c.DBPassword = v
+	}
+}
+
 // ComposeFilePath returns full path to a compose file
 func (c *Config) ComposeFilePath(filename string) string {
 	return filepath.Join(c.ProjectsDir, filename)

@@ -25,6 +25,7 @@ This command provides direct access to the database for running SQL queries and 
 				return fmt.Errorf("initialize docker: %w", err)
 			}
 			defer runner.Close()
+			resolveContainerConfig(runner)
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
 				Container: cfg.DBContainerName,

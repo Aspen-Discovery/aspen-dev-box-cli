@@ -39,6 +39,7 @@ You can optionally include indexing logs using the --include-indexing flag.`,
 				return fmt.Errorf("initialize docker: %w", err)
 			}
 			defer runner.Close()
+			resolveContainerConfig(runner)
 
 			shellCmd := fmt.Sprintf("cd %s && %s %s", cfg.LogPath, tailCmd, logsPattern)
 

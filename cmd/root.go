@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"adb/pkg/config"
+	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
 )
@@ -51,4 +53,12 @@ func init() {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
+}
+
+func resolveContainerConfig(runner *docker.SDKRunner) {
+	env, err := runner.ContainerEnv(context.Background(), cfg.MainContainerName)
+	if err != nil {
+		return
+	}
+	cfg.ApplyContainerEnv(env)
 }

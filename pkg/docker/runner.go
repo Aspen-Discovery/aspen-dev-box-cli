@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -42,6 +43,7 @@ type Runner interface {
 	Run(ctx context.Context, cfg RunConfig) (*RunResult, error)
 	Exec(ctx context.Context, cfg ExecConfig) (*RunResult, error)
 	ExecInteractive(ctx context.Context, cfg ExecConfig) error
+	ContainerEnv(ctx context.Context, containerName string) (map[string]string, error)
 	Pull(ctx context.Context, imageName string) error
 	Close() error
 }
@@ -60,6 +62,20 @@ func NewRunner() (*SDKRunner, error) {
 
 func (r *SDKRunner) Close() error {
 	return r.client.Close()
+}
+
+func (r *SDKRunner) ContainerEnv(ctx context.Context, containerName string) (map[string]string, error) {
+	inspect, err := r.client.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return nil, fmt.Errorf("inspect container: %w", err)
+	}
+	envs := make(map[string]string)
+	for _, e := range inspect.Config.Env {
+		if k, v, ok := strings.Cut(e, "="); ok {
+			envs[k] = v
+		}
+	}
+	return envs, nil
 }
 
 func (r *SDKRunner) Exec(ctx context.Context, cfg ExecConfig) (*RunResult, error) {

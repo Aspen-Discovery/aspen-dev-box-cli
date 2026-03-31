@@ -53,6 +53,7 @@ WHERE driver='%s'\G
 				return fmt.Errorf("initialize docker: %w", err)
 			}
 			defer runner.Close()
+			resolveContainerConfig(runner)
 
 			shellCmd := fmt.Sprintf("echo \"%s\" | mariadb %s", sql, cfg.DBConnectionString())
 
