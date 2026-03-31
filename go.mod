@@ -13,7 +13,6 @@ require (
 	github.com/ktr0731/go-fuzzyfinder v0.9.0
 	github.com/moby/term v0.5.2
 	github.com/spf13/cobra v1.8.0
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
