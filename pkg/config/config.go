@@ -20,10 +20,10 @@ type Config struct {
 	DBGUIComposeFile     string
 	EvergreenComposeFile string
 
-	// Container settings
-	MainContainerName    string
+	StackName            string
+	MainContainerService string
 	MainContainerWorkDir string
-	DBContainerName      string
+	DBContainerService   string
 
 	// Database settings
 	DBName     string
@@ -60,9 +60,9 @@ func Load() (*Config, error) {
 		DebugComposeFile:     "docker-compose.debug.yml",
 		DBGUIComposeFile:     "docker-compose.dbgui.yml",
 		EvergreenComposeFile: "docker-compose.evergreen.yml",
-		MainContainerName:    "containeraspen",
+		MainContainerService: "aspen-dev-box",
 		MainContainerWorkDir: "/usr/local/aspen-discovery",
-		DBContainerName:      "aspen-db",
+		DBContainerService:   "aspen-db",
 		DBName:               "aspen",
 		DBUser:               "root",
 		DBPassword:           "aspen",
@@ -90,7 +90,19 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("ASPEN_CLONE environment variable not set")
 	}
 
+	cfg.StackName = resolveStackName(cfg.ProjectsDir)
+
 	return cfg, nil
+}
+
+func resolveStackName(projectsDir string) string {
+	if v := os.Getenv("ASPEN_STACK"); v != "" {
+		return v
+	}
+	if v := os.Getenv("COMPOSE_PROJECT_NAME"); v != "" {
+		return v
+	}
+	return filepath.Base(projectsDir)
 }
 
 // loadEnvFile attempts to load .env file relative to binary location
@@ -153,6 +165,18 @@ func (c *Config) EvergreenComposeFilePath() string {
 // DBConnectionString returns the mariadb connection string
 func (c *Config) DBConnectionString() string {
 	return fmt.Sprintf("-u%s -p%s %s", c.DBUser, c.DBPassword, c.DBName)
+}
+
+func (c *Config) ContainerName(service string) string {
+	return fmt.Sprintf("%s-%s-1", c.StackName, service)
+}
+
+func (c *Config) MainContainerName() string {
+	return c.ContainerName(c.MainContainerService)
+}
+
+func (c *Config) DBContainerName() string {
+	return c.ContainerName(c.DBContainerService)
 }
 
 // CSSDir returns the path to CSS directory, with optional RTL suffix
