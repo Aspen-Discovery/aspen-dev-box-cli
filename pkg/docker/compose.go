@@ -8,6 +8,7 @@ import (
 )
 
 type ComposeConfig struct {
+	Project  string
 	Files    []string
 	Detached bool
 }
@@ -51,6 +52,9 @@ func (c *Compose) Down(ctx context.Context) error {
 
 func (c *Compose) baseArgs() []string {
 	args := []string{"compose"}
+	if c.config.Project != "" {
+		args = append(args, "-p", c.config.Project)
+	}
 	for _, f := range c.config.Files {
 		args = append(args, "-f", f)
 	}
