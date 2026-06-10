@@ -18,7 +18,8 @@ func DownCommand() *cobra.Command {
 This command stops and removes all containers defined in the docker-compose file.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			compose := docker.NewCompose(docker.ComposeConfig{
-				Files: []string{cfg.DefaultComposeFilePath()},
+				Project: cfg.StackName,
+				Files:   []string{cfg.DefaultComposeFilePath()},
 			})
 			return compose.Down(cmd.Context())
 		},

@@ -57,6 +57,7 @@ You can also select which ILS to use (koha or evergreen).`,
 			}
 
 			compose := docker.NewCompose(docker.ComposeConfig{
+				Project:  cfg.StackName,
 				Files:    files,
 				Detached: detached,
 			})

@@ -44,7 +44,7 @@ You can optionally include indexing logs using the --include-indexing flag.`,
 			shellCmd := fmt.Sprintf("cd %s && %s %s", cfg.LogPath, tailCmd, logsPattern)
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
-				Container: cfg.MainContainerName,
+				Container: cfg.MainContainerName(),
 				Cmd:       []string{"/bin/bash", "-c", shellCmd},
 			})
 		},

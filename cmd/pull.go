@@ -43,7 +43,8 @@ Examples:
 			}
 
 			compose := docker.NewCompose(docker.ComposeConfig{
-				Files: files,
+				Project: cfg.StackName,
+				Files:   files,
 			})
 
 			return compose.Pull(cmd.Context())

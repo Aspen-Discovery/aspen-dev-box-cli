@@ -28,7 +28,7 @@ This command runs the merge script inside the main container to combine and mini
 			defer runner.Close()
 
 			result, err := runner.Exec(context.Background(), docker.ExecConfig{
-				Container:  cfg.MainContainerName,
+				Container:  cfg.MainContainerName(),
 				Cmd:        []string{"php", cfg.MergeJSScript},
 				WorkingDir: cfg.JSWorkDir,
 			})

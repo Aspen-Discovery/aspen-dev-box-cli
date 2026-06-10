@@ -53,10 +53,12 @@ func init() {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
+
+	rootCmd.PersistentFlags().StringVar(&cfg.StackName, "stack", cfg.StackName, "Docker compose project (stack) name")
 }
 
 func resolveContainerConfig(runner *docker.SDKRunner) {
-	env, err := runner.ContainerEnv(context.Background(), cfg.MainContainerName)
+	env, err := runner.ContainerEnv(context.Background(), cfg.MainContainerName())
 	if err != nil {
 		return
 	}

@@ -41,7 +41,7 @@ This command triggers the database update process by calling the SystemAPI endpo
 			curlCmd := "curl -s -k http://localhost/API/SystemAPI?method=runPendingDatabaseUpdates"
 
 			result, err := runner.Exec(context.Background(), docker.ExecConfig{
-				Container: cfg.MainContainerName,
+				Container: cfg.MainContainerName(),
 				Cmd:       []string{"/bin/bash", "-c", curlCmd},
 			})
 			if err != nil {

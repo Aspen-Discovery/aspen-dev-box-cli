@@ -58,7 +58,7 @@ WHERE driver='%s'\G
 			shellCmd := fmt.Sprintf("echo \"%s\" | mariadb %s", sql, cfg.DBConnectionString())
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
-				Container: cfg.DBContainerName,
+				Container: cfg.DBContainerName(),
 				Cmd:       []string{"/bin/bash", "-c", shellCmd},
 			})
 		},

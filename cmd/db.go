@@ -28,7 +28,7 @@ This command provides direct access to the database for running SQL queries and 
 			resolveContainerConfig(runner)
 
 			return runner.ExecInteractive(context.Background(), docker.ExecConfig{
-				Container: cfg.DBContainerName,
+				Container: cfg.DBContainerName(),
 				Cmd:       []string{"/bin/bash", "-c", "mariadb " + cfg.DBConnectionString()},
 			})
 		},
