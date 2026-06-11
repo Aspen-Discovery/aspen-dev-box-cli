@@ -81,6 +81,11 @@ func setupILS(value, kohaStack string) ([]string, error) {
 		return nil, nil
 	}
 
+	if kohaStack == "" {
+		kohaStack = "kohadev"
+	}
+	os.Setenv("KOHA_STACK", kohaStack)
+
 	configPath, err := ils.ResolvePath(value, filepath.Join(cfg.ProjectsDir, "ils"))
 	if err != nil {
 		return nil, err
@@ -98,11 +103,7 @@ func setupILS(value, kohaStack string) ([]string, error) {
 	os.Setenv("ADB_ILS_SQL", sqlPath)
 
 	overlays := []string{filepath.Join(cfg.ProjectsDir, "docker-compose.ils.yml")}
-
 	if value == "koha" {
-		if kohaStack != "" {
-			os.Setenv("KOHA_STACK", kohaStack)
-		}
 		overlays = append(overlays, filepath.Join(cfg.ProjectsDir, "docker-compose.koha.yml"))
 	}
 
