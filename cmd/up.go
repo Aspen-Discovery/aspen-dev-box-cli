@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"adb/pkg/docker"
+	"adb/pkg/ils"
 
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/spf13/cobra"
@@ -22,14 +23,15 @@ func UpCommand() *cobra.Command {
 	var dbgui bool
 	var pullUpdated bool
 	var kohaStack string
-	var ils string
+	var ilsFlag string
 
 	cmd := &cobra.Command{
 		Use:   "up",
 		Short: "Bring up the Docker Compose project",
 		Long: `Bring up the Docker Compose project with optional configurations.
 You can run in detached mode, with debugging enabled, or with the database GUI.
-You can also select which ILS to use (koha or evergreen).`,
+The --ils flag accepts a preset name (koha, evergreen, ...), a path to a custom
+YAML config, or "none" to skip ILS setup entirely.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			files := []string{cfg.DefaultComposeFilePath()}
@@ -42,13 +44,11 @@ You can also select which ILS to use (koha or evergreen).`,
 				files = append(files, cfg.DBGUIComposeFilePath())
 			}
 
-			aspenDocker := cfg.ProjectsDir
-
-			ilsFile, err := getILSComposeFile(aspenDocker, ils, kohaStack)
+			ilsFiles, err := setupILS(ilsFlag, kohaStack)
 			if err != nil {
 				return err
 			}
-			files = append(files, ilsFile)
+			files = append(files, ilsFiles...)
 
 			if pullUpdated {
 				if err := pullImagesFromFiles(ctx, files); err != nil {
@@ -70,34 +70,48 @@ You can also select which ILS to use (koha or evergreen).`,
 	cmd.Flags().BoolVarP(&debugging, "debugging", "g", false, "Run with debugging compose file")
 	cmd.Flags().BoolVarP(&dbgui, "dbgui", "b", false, "Run with dbgui compose file")
 	cmd.Flags().BoolVarP(&pullUpdated, "pull", "p", false, "Pull the images for the project only if they have been updated")
-	cmd.Flags().StringVarP(&kohaStack, "koha-stack", "k", "", "Specify the Koha stack to connect to (default: kohadev)")
-	cmd.Flags().StringVarP(&ils, "ils", "i", "koha", "Select ILS to use (koha|evergreen)")
+	cmd.Flags().StringVarP(&kohaStack, "koha-stack", "k", "", "Koha stack to connect to (default: kohadev)")
+	cmd.Flags().StringVarP(&ilsFlag, "ils", "i", "koha", "ILS preset name, path to YAML config, or 'none'")
 
 	return cmd
 }
 
-func getILSComposeFile(aspenDocker, ils, kohaStack string) (string, error) {
-	switch ils {
-	case "koha":
+func setupILS(value, kohaStack string) ([]string, error) {
+	if value == "" || value == "none" {
+		return nil, nil
+	}
+
+	configPath, err := ils.ResolvePath(value, filepath.Join(cfg.ProjectsDir, "ils"))
+	if err != nil {
+		return nil, err
+	}
+
+	ilsCfg, err := ils.Load(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	sqlPath := filepath.Join(cfg.ProjectsDir, ".cache", "ils-setup.sql")
+	if err := ilsCfg.WriteSQL(sqlPath); err != nil {
+		return nil, fmt.Errorf("write ils sql: %w", err)
+	}
+	os.Setenv("ADB_ILS_SQL", sqlPath)
+
+	overlays := []string{filepath.Join(cfg.ProjectsDir, "docker-compose.ils.yml")}
+
+	if value == "koha" {
 		if kohaStack != "" {
 			os.Setenv("KOHA_STACK", kohaStack)
 		}
-		path := filepath.Join(aspenDocker, "docker-compose.koha.yml")
-		if _, err := os.Stat(path); err != nil {
-			return "", fmt.Errorf("Koha override file not found at %s", path)
-		}
-		return path, nil
-
-	case "evergreen":
-		path := filepath.Join(aspenDocker, "docker-compose.evergreen.yml")
-		if _, err := os.Stat(path); err != nil {
-			return "", fmt.Errorf("Evergreen override file not found at %s", path)
-		}
-		return path, nil
-
-	default:
-		return "", fmt.Errorf("unsupported ILS '%s'. Supported values: koha, evergreen", ils)
+		overlays = append(overlays, filepath.Join(cfg.ProjectsDir, "docker-compose.koha.yml"))
 	}
+
+	for _, p := range overlays {
+		if _, err := os.Stat(p); err != nil {
+			return nil, fmt.Errorf("compose overlay missing: %s", p)
+		}
+	}
+	return overlays, nil
 }
 
 func pullImagesFromFiles(ctx context.Context, files []string) error {
