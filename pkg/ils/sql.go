@@ -3,12 +3,13 @@ package ils
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
 
-func (c *Config) WriteSQL(path string) error {
-	sql, err := c.RenderSQL()
+func (c *Config) WriteSQL(path, extrasRoot string) error {
+	sql, err := c.RenderSQL(extrasRoot)
 	if err != nil {
 		return err
 	}
@@ -18,7 +19,7 @@ func (c *Config) WriteSQL(path string) error {
 	return os.WriteFile(path, []byte(sql), 0o644)
 }
 
-func (c *Config) RenderSQL() (string, error) {
+func (c *Config) RenderSQL(extrasRoot string) (string, error) {
 	var b strings.Builder
 	b.WriteString("SET FOREIGN_KEY_CHECKS=0;\n")
 	if err := writeInsert(&b, "account_profiles", c.AccountProfile); err != nil {
@@ -31,7 +32,14 @@ func (c *Config) RenderSQL() (string, error) {
 		fmt.Fprintf(&b, "UPDATE modules SET enabled = 1 WHERE name = %s;\n", quote(c.Driver))
 	}
 	if c.ExtrasSQL != "" {
-		fmt.Fprintf(&b, "SOURCE %s;\n", c.ExtrasSQL)
+		extras, err := os.ReadFile(filepath.Join(extrasRoot, c.ExtrasSQL))
+		if err != nil {
+			return "", fmt.Errorf("read extras sql: %w", err)
+		}
+		b.Write(extras)
+		if !strings.HasSuffix(string(extras), "\n") {
+			b.WriteString("\n")
+		}
 	}
 	b.WriteString("SET FOREIGN_KEY_CHECKS=1;\n")
 	return b.String(), nil

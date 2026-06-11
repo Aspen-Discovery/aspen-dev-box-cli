@@ -97,7 +97,7 @@ func setupILS(value, kohaStack string) ([]string, error) {
 	}
 
 	sqlPath := filepath.Join(cfg.ProjectsDir, ".cache", "ils-setup.sql")
-	if err := ilsCfg.WriteSQL(sqlPath); err != nil {
+	if err := ilsCfg.WriteSQL(sqlPath, cfg.ProjectsDir); err != nil {
 		return nil, fmt.Errorf("write ils sql: %w", err)
 	}
 	os.Setenv("ADB_ILS_SQL", sqlPath)
