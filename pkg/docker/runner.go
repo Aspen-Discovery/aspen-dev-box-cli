@@ -64,6 +64,17 @@ func (r *SDKRunner) Close() error {
 	return r.client.Close()
 }
 
+func (r *SDKRunner) ContainerRunning(ctx context.Context, containerName string) (bool, error) {
+	inspect, err := r.client.ContainerInspect(ctx, containerName)
+	if err != nil {
+		if client.IsErrNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("inspect container: %w", err)
+	}
+	return inspect.State != nil && inspect.State.Running, nil
+}
+
 func (r *SDKRunner) ContainerEnv(ctx context.Context, containerName string) (map[string]string, error) {
 	inspect, err := r.client.ContainerInspect(ctx, containerName)
 	if err != nil {

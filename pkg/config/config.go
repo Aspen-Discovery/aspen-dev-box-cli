@@ -19,6 +19,7 @@ type Config struct {
 	DebugComposeFile     string
 	DBGUIComposeFile     string
 	EvergreenComposeFile string
+	TestsComposeFile     string
 
 	StackName            string
 	MainContainerService string
@@ -60,6 +61,7 @@ func Load() (*Config, error) {
 		DebugComposeFile:     "docker-compose.debug.yml",
 		DBGUIComposeFile:     "docker-compose.dbgui.yml",
 		EvergreenComposeFile: "docker-compose.evergreen.yml",
+		TestsComposeFile:     "docker-compose.tests.yml",
 		MainContainerService: "aspen-dev-box",
 		MainContainerWorkDir: "/usr/local/aspen-discovery",
 		DBContainerService:   "aspen-db",
@@ -160,6 +162,11 @@ func (c *Config) DBGUIComposeFilePath() string {
 // EvergreenComposeFilePath returns path to the evergreen docker-compose file
 func (c *Config) EvergreenComposeFilePath() string {
 	return c.ComposeFilePath(c.EvergreenComposeFile)
+}
+
+// TestsComposeFilePath returns path to the unit tests docker-compose file
+func (c *Config) TestsComposeFilePath() string {
+	return c.ComposeFilePath(c.TestsComposeFile)
 }
 
 // DBConnectionString returns the mariadb connection string

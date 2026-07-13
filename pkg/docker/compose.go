@@ -11,6 +11,7 @@ type ComposeConfig struct {
 	Project  string
 	Files    []string
 	Detached bool
+	Quiet    bool
 }
 
 type Composer interface {
@@ -50,8 +51,18 @@ func (c *Compose) Down(ctx context.Context) error {
 	return c.run(ctx, args)
 }
 
+func (c *Compose) RunService(ctx context.Context, service string, extra []string) error {
+	args := c.baseArgs()
+	args = append(args, "run", "--rm", "--no-deps", service)
+	args = append(args, extra...)
+	return c.run(ctx, args)
+}
+
 func (c *Compose) baseArgs() []string {
 	args := []string{"compose"}
+	if c.config.Quiet {
+		args = append(args, "--progress", "quiet")
+	}
 	if c.config.Project != "" {
 		args = append(args, "-p", c.config.Project)
 	}
