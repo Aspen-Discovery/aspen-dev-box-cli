@@ -141,7 +141,7 @@ func (c *Config) ApplyContainerEnv(env map[string]string) {
 
 // ComposeFilePath returns full path to a compose file
 func (c *Config) ComposeFilePath(filename string) string {
-	return filepath.Join(c.ProjectsDir, filename)
+	return filepath.Join(c.ProjectsDir, "compose", filename)
 }
 
 // DefaultComposeFilePath returns path to the default docker-compose file

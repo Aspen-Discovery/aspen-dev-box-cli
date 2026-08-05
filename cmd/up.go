@@ -97,7 +97,7 @@ func setupPlugins(enabled bool, path string) ([]string, error) {
 		}
 		os.Setenv("ASPEN_PLUGINS", abs)
 	}
-	overlay := filepath.Join(cfg.ProjectsDir, "docker-compose.plugins.yml")
+	overlay := cfg.ComposeFilePath("docker-compose.plugins.yml")
 	if _, err := os.Stat(overlay); err != nil {
 		return nil, fmt.Errorf("plugins overlay missing: %s", overlay)
 	}
@@ -130,9 +130,9 @@ func setupILS(value, kohaStack string) ([]string, error) {
 	}
 	os.Setenv("ADB_ILS_SQL", sqlPath)
 
-	overlays := []string{filepath.Join(cfg.ProjectsDir, "docker-compose.ils.yml")}
+	overlays := []string{cfg.ComposeFilePath("docker-compose.ils.yml")}
 	if value == "koha" {
-		overlays = append(overlays, filepath.Join(cfg.ProjectsDir, "docker-compose.koha.yml"))
+		overlays = append(overlays, cfg.ComposeFilePath("docker-compose.koha.yml"))
 	}
 
 	for _, p := range overlays {
