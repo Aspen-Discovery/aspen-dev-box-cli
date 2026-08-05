@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"adb/pkg/config"
 	"adb/pkg/docker"
 	"adb/pkg/ils"
 
@@ -36,14 +37,14 @@ The --ils flag accepts a preset name (koha, evergreen, ...), a path to a custom
 YAML config, or "none" to skip ILS setup entirely.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			files := []string{cfg.DefaultComposeFilePath()}
+			files := []string{cfg.ComposeFilePath(config.DefaultComposeFile)}
 
 			if debugging {
-				files = append(files, cfg.DebugComposeFilePath())
+				files = append(files, cfg.ComposeFilePath(config.DebugComposeFile))
 			}
 
 			if dbgui {
-				files = append(files, cfg.DBGUIComposeFilePath())
+				files = append(files, cfg.ComposeFilePath(config.DBGUIComposeFile))
 			}
 
 			ilsFiles, err := setupILS(ilsFlag, kohaStack)
@@ -97,7 +98,7 @@ func setupPlugins(enabled bool, path string) ([]string, error) {
 		}
 		os.Setenv("ASPEN_PLUGINS", abs)
 	}
-	overlay := cfg.ComposeFilePath("docker-compose.plugins.yml")
+	overlay := cfg.ComposeFilePath(config.PluginsComposeFile)
 	if _, err := os.Stat(overlay); err != nil {
 		return nil, fmt.Errorf("plugins overlay missing: %s", overlay)
 	}
@@ -130,9 +131,9 @@ func setupILS(value, kohaStack string) ([]string, error) {
 	}
 	os.Setenv("ADB_ILS_SQL", sqlPath)
 
-	overlays := []string{cfg.ComposeFilePath("docker-compose.ils.yml")}
+	overlays := []string{cfg.ComposeFilePath(config.ILSComposeFile)}
 	if value == "koha" {
-		overlays = append(overlays, cfg.ComposeFilePath("docker-compose.koha.yml"))
+		overlays = append(overlays, cfg.ComposeFilePath(config.KohaComposeFile))
 	}
 
 	for _, p := range overlays {

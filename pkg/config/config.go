@@ -8,18 +8,23 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Docker compose files, relative to the compose/ directory
+const (
+	DefaultComposeFile   = "docker-compose.yml"
+	DebugComposeFile     = "docker-compose.debug.yml"
+	DBGUIComposeFile     = "docker-compose.dbgui.yml"
+	ILSComposeFile       = "docker-compose.ils.yml"
+	KohaComposeFile      = "docker-compose.koha.yml"
+	EvergreenComposeFile = "docker-compose.evergreen.yml"
+	PluginsComposeFile   = "docker-compose.plugins.yml"
+	TestsComposeFile     = "docker-compose.tests.yml"
+)
+
 // Config holds all application configuration
 type Config struct {
 	// Required - from environment
 	ProjectsDir   string
 	AspenCloneDir string
-
-	// Docker compose files
-	DefaultComposeFile   string
-	DebugComposeFile     string
-	DBGUIComposeFile     string
-	EvergreenComposeFile string
-	TestsComposeFile     string
 
 	StackName            string
 	MainContainerService string
@@ -57,11 +62,6 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		// Defaults
-		DefaultComposeFile:   "docker-compose.yml",
-		DebugComposeFile:     "docker-compose.debug.yml",
-		DBGUIComposeFile:     "docker-compose.dbgui.yml",
-		EvergreenComposeFile: "docker-compose.evergreen.yml",
-		TestsComposeFile:     "docker-compose.tests.yml",
 		MainContainerService: "aspen-dev-box",
 		MainContainerWorkDir: "/usr/local/aspen-discovery",
 		DBContainerService:   "aspen-db",
@@ -142,31 +142,6 @@ func (c *Config) ApplyContainerEnv(env map[string]string) {
 // ComposeFilePath returns full path to a compose file
 func (c *Config) ComposeFilePath(filename string) string {
 	return filepath.Join(c.ProjectsDir, "compose", filename)
-}
-
-// DefaultComposeFilePath returns path to the default docker-compose file
-func (c *Config) DefaultComposeFilePath() string {
-	return c.ComposeFilePath(c.DefaultComposeFile)
-}
-
-// DebugComposeFilePath returns path to the debug docker-compose file
-func (c *Config) DebugComposeFilePath() string {
-	return c.ComposeFilePath(c.DebugComposeFile)
-}
-
-// DBGUIComposeFilePath returns path to the dbgui docker-compose file
-func (c *Config) DBGUIComposeFilePath() string {
-	return c.ComposeFilePath(c.DBGUIComposeFile)
-}
-
-// EvergreenComposeFilePath returns path to the evergreen docker-compose file
-func (c *Config) EvergreenComposeFilePath() string {
-	return c.ComposeFilePath(c.EvergreenComposeFile)
-}
-
-// TestsComposeFilePath returns path to the unit tests docker-compose file
-func (c *Config) TestsComposeFilePath() string {
-	return c.ComposeFilePath(c.TestsComposeFile)
 }
 
 // DBConnectionString returns the mariadb connection string

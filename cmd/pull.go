@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -28,18 +29,18 @@ Examples:
   adb pull -g -b        # Pull base + debug + phpmyadmin images
   adb pull --evergreen  # Pull base + evergreen images`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			files := []string{cfg.DefaultComposeFilePath()}
+			files := []string{cfg.ComposeFilePath(config.DefaultComposeFile)}
 
 			if debugging {
-				files = append(files, cfg.DebugComposeFilePath())
+				files = append(files, cfg.ComposeFilePath(config.DebugComposeFile))
 			}
 
 			if dbgui {
-				files = append(files, cfg.DBGUIComposeFilePath())
+				files = append(files, cfg.ComposeFilePath(config.DBGUIComposeFile))
 			}
 
 			if evergreen {
-				files = append(files, cfg.EvergreenComposeFilePath())
+				files = append(files, cfg.ComposeFilePath(config.EvergreenComposeFile))
 			}
 
 			compose := docker.NewCompose(docker.ComposeConfig{

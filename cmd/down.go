@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -19,7 +20,7 @@ This command stops and removes all containers defined in the docker-compose file
 		RunE: func(cmd *cobra.Command, args []string) error {
 			compose := docker.NewCompose(docker.ComposeConfig{
 				Project: cfg.StackName,
-				Files:   []string{cfg.DefaultComposeFilePath()},
+				Files:   []string{cfg.ComposeFilePath(config.DefaultComposeFile)},
 			})
 			return compose.Down(cmd.Context())
 		},

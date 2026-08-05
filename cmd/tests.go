@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"adb/pkg/config"
 	"adb/pkg/docker"
 
 	"github.com/spf13/cobra"
@@ -48,7 +49,7 @@ Examples:
 			os.Setenv("COMPOSE_IGNORE_ORPHANS", "1")
 			compose := docker.NewCompose(docker.ComposeConfig{
 				Project: cfg.StackName,
-				Files:   []string{cfg.DefaultComposeFilePath(), cfg.TestsComposeFilePath()},
+				Files:   []string{cfg.ComposeFilePath(config.DefaultComposeFile), cfg.ComposeFilePath(config.TestsComposeFile)},
 				Quiet:   true,
 			})
 			return compose.RunService(ctx, "unit-tests", args)
