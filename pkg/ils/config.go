@@ -38,7 +38,12 @@ func loadOne(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read ils config %s: %w", path, err)
 	}
-	expanded := os.ExpandEnv(string(data))
+	expanded := os.Expand(string(data), func(name string) string {
+		if value, ok := os.LookupEnv(name); ok {
+			return value
+		}
+		return "$" + name
+	})
 	var cfg Config
 	if err := yaml.Unmarshal([]byte(expanded), &cfg); err != nil {
 		return nil, fmt.Errorf("parse ils config %s: %w", path, err)
