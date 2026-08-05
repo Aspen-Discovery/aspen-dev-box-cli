@@ -135,6 +135,9 @@ func setupILS(value, kohaStack string) ([]string, error) {
 	if value == "koha" {
 		overlays = append(overlays, cfg.ComposeFilePath(config.KohaComposeFile))
 	}
+	if value == "evergreen" {
+		overlays = append(overlays, cfg.ComposeFilePath(config.EvergreenComposeFile))
+	}
 
 	for _, p := range overlays {
 		if _, err := os.Stat(p); err != nil {
