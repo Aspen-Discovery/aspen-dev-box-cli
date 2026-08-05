@@ -21,6 +21,7 @@ func init() {
 func UpCommand() *cobra.Command {
 	var detached bool
 	var debugging bool
+	var javaDebug bool
 	var dbgui bool
 	var pullUpdated bool
 	var kohaStack string
@@ -41,6 +42,10 @@ YAML config, or "none" to skip ILS setup entirely.`,
 
 			if debugging {
 				files = append(files, cfg.ComposeFilePath(config.DebugComposeFile))
+			}
+
+			if javaDebug {
+				files = append(files, cfg.ComposeFilePath(config.JavaDebugComposeFile))
 			}
 
 			if dbgui {
@@ -77,6 +82,7 @@ YAML config, or "none" to skip ILS setup entirely.`,
 
 	cmd.Flags().BoolVarP(&detached, "detached", "d", false, "Run in detached mode")
 	cmd.Flags().BoolVarP(&debugging, "debugging", "g", false, "Run with debugging compose file")
+	cmd.Flags().BoolVarP(&javaDebug, "java-debug", "j", false, "Expose JDWP port 5005 and mount debug.sh for java debugging")
 	cmd.Flags().BoolVarP(&dbgui, "dbgui", "b", false, "Run with dbgui compose file")
 	cmd.Flags().BoolVarP(&pullUpdated, "pull", "p", false, "Pull the images for the project only if they have been updated")
 	cmd.Flags().StringVarP(&kohaStack, "koha-stack", "k", "", "Koha stack to connect to (default: kohadev)")

@@ -12,6 +12,7 @@ import (
 const (
 	DefaultComposeFile   = "docker-compose.yml"
 	DebugComposeFile     = "docker-compose.debug.yml"
+	JavaDebugComposeFile = "docker-compose.debug.java.yml"
 	DBGUIComposeFile     = "docker-compose.dbgui.yml"
 	ILSComposeFile       = "docker-compose.ils.yml"
 	KohaComposeFile      = "docker-compose.koha.yml"
