@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -12,42 +14,13 @@ import (
 )
 
 type aspenJob struct {
-	Dir  string
-	Bin  []string
+	Dir string
+	Bin []string
 }
 
-var aspenJobs = map[string]aspenJob{
-	"reindexer":               jarJob("reindexer"),
-	"oai-indexer":             jarJob("oai_indexer"),
-	"sideload":                jarJob("sideload_processing"),
-	"user-lists":              jarJob("user_list_indexer"),
-	"course-reserves":         jarJob("course_reserves_indexer"),
-	"events-indexer":          jarJob("events_indexer"),
-	"series-indexer":          jarJob("series_indexer"),
-	"web-indexer":             jarJob("web_indexer"),
-	"marc-merge":              jarJob("marcMergeUtility"),
-	"cron-jar":                jarJob("cron"),
-	"koha-export":             jarJob("koha_export"),
-	"evergreen-export":        jarJob("evergreen_export"),
-	"polaris-export":          jarJob("polaris_export"),
-	"sierra-export":           jarJob("sierra_export_api"),
-	"carlx-export":            jarJob("carlx_export"),
-	"symphony-export":         jarJob("symphony_export"),
-	"evolve-export":           jarJob("evolve_export"),
-	"axis-360-export":         jarJob("axis_360_export"),
-	"hoopla-export":           jarJob("hoopla_export"),
-	"overdrive-export":        jarJob("overdrive_extract"),
-	"cloud-library-export":    jarJob("cloud_library_export"),
-	"palace-project-export":   jarJob("palace_project_export"),
-	"cron":                    {Dir: "/usr/local/aspen-discovery/docker/files/cron", Bin: []string{"php", "checkBackgroundProcessesDocker.php"}},
-	"sitemaps":                {Dir: "/usr/local/aspen-discovery/code/web/cron", Bin: []string{"php", "createSitemaps.php"}},
-}
-
-func jarJob(name string) aspenJob {
-	return aspenJob{
-		Dir: "/usr/local/aspen-discovery/code/" + name,
-		Bin: []string{"java", "-jar", name + ".jar"},
-	}
+var phpJobs = map[string]aspenJob{
+	"cron":     {Dir: "/usr/local/aspen-discovery/docker/files/cron", Bin: []string{"php", "checkBackgroundProcessesDocker.php"}},
+	"sitemaps": {Dir: "/usr/local/aspen-discovery/code/web/cron", Bin: []string{"php", "createSitemaps.php"}},
 }
 
 func init() {
@@ -57,12 +30,16 @@ func init() {
 func RunCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "run <job> [extra args...]",
-		Short: "Run an aspen background job (reindexer, koha-export, etc.)",
-		Long:  buildRunLong(),
+		Short: "Run an aspen background job (reindexer, koha_export, etc.)",
+		Long:  "Run 'adb run list' to see available jobs.\n\nJAR jobs are discovered from the aspen clone; any module under code/ with a\nbuilt <module>.jar is runnable by its module name.\n\nExamples:\n  adb run koha_export\n  adb run reindexer nightly\n  adb run list",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			jobs, err := aspenJobs()
+			if err != nil {
+				return err
+			}
 			if args[0] == "list" {
-				for _, name := range sortedJobs() {
+				for _, name := range sortedJobs(jobs) {
 					fmt.Println(name)
 				}
 				return nil
@@ -72,40 +49,58 @@ func RunCommand() *cobra.Command {
 				return fmt.Errorf("initialize docker: %w", err)
 			}
 			defer runner.Close()
-			return runJob(cmd.Context(), runner, args[0], args[1:])
+			return runJob(cmd.Context(), runner, jobs, args[0], args[1:])
 		},
 	}
 }
 
-func buildRunLong() string {
-	return "Run 'adb run list' to see available jobs.\n\nExamples:\n  adb run koha-export\n  adb run reindexer nightly\n  adb run list"
+func aspenJobs() (map[string]aspenJob, error) {
+	jobs := make(map[string]aspenJob, len(phpJobs))
+	for name, job := range phpJobs {
+		jobs[name] = job
+	}
+
+	entries, err := os.ReadDir(cfg.CodeDir())
+	if err != nil {
+		return nil, fmt.Errorf("read aspen code dir: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if _, err := os.Stat(filepath.Join(cfg.CodeDir(), name, name+".jar")); err != nil {
+			continue
+		}
+		jobs[name] = aspenJob{
+			Dir: "/usr/local/aspen-discovery/code/" + name,
+			Bin: []string{"java", "-jar", name + ".jar"},
+		}
+	}
+	return jobs, nil
 }
 
-func sortedJobs() []string {
-	names := make([]string, 0, len(aspenJobs))
-	for k := range aspenJobs {
+func sortedJobs(jobs map[string]aspenJob) []string {
+	names := make([]string, 0, len(jobs))
+	for k := range jobs {
 		names = append(names, k)
 	}
 	sort.Strings(names)
 	return names
 }
 
-func runJob(ctx context.Context, runner *docker.SDKRunner, name string, extra []string) error {
-	job, ok := aspenJobs[name]
+func runJob(ctx context.Context, runner *docker.SDKRunner, jobs map[string]aspenJob, name string, extra []string) error {
+	job, ok := jobs[name]
 	if !ok {
-		return fmt.Errorf("unknown job %q (try one of: %s)", name, sortedJobNames())
+		return fmt.Errorf("unknown job %q (try one of: %s)", name, strings.Join(sortedJobs(jobs), ", "))
 	}
 	parts := append([]string{}, job.Bin...)
 	parts = append(parts, "${SITE_NAME:-dev.localhost}")
 	parts = append(parts, extra...)
 	script := fmt.Sprintf("cd %s && %s", job.Dir, strings.Join(parts, " "))
 	return runner.ExecInteractive(ctx, docker.ExecConfig{
-		Container:  cfg.MainContainerName(),
-		User:       "www-data",
-		Cmd:        []string{"sh", "-c", script},
+		Container: cfg.MainContainerName(),
+		User:      "www-data",
+		Cmd:       []string{"sh", "-c", script},
 	})
-}
-
-func sortedJobNames() string {
-	return strings.Join(sortedJobs(), ", ")
 }
