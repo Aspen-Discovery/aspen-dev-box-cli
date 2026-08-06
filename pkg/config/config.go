@@ -157,6 +157,13 @@ func (c *Config) ComposeFilePath(filename string) string {
 	return filepath.Join(c.ProjectsDir, "compose", filename)
 }
 
+// ILSSQLPath returns the generated ILS setup SQL path for a stack. Scoped
+// per stack: the file is bind-mounted into the stack's db container and read
+// whenever that db (re)initialises, so stacks must not share it.
+func (c *Config) ILSSQLPath(stack string) string {
+	return filepath.Join(c.ProjectsDir, ".cache", stack+"-ils-setup.sql")
+}
+
 // DBConnectionString returns the mariadb connection string
 func (c *Config) DBConnectionString() string {
 	return fmt.Sprintf("-u%s -p%s %s", c.DBUser, c.DBPassword, c.DBName)

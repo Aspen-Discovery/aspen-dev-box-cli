@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"adb/pkg/config"
 	"adb/pkg/docker"
@@ -50,7 +51,13 @@ func downStack(ctx context.Context, project string) error {
 		return err
 	}
 	defer runner.Close()
-	return runner.RemoveProjectVolumes(ctx, project)
+	if err := runner.RemoveProjectVolumes(ctx, project); err != nil {
+		return err
+	}
+	if err := os.Remove(cfg.ILSSQLPath(project)); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove ils sql: %w", err)
+	}
+	return nil
 }
 
 func downAll(ctx context.Context) error {
