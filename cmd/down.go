@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
+
 	"adb/pkg/config"
 	"adb/pkg/docker"
 
@@ -12,17 +15,52 @@ func init() {
 }
 
 func DownCommand() *cobra.Command {
-	return &cobra.Command{
+	var all bool
+	cmd := &cobra.Command{
 		Use:   "down",
 		Short: "Bring down the Docker Compose project",
 		Long: `Bring down the Docker Compose project and remove orphaned containers.
-This command stops and removes all containers defined in the docker-compose file.`,
+The aspen proxy is stopped along with the last proxied stack. --all brings
+down every aspen stack (any worktree or stack name) and the proxy.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			compose := docker.NewCompose(docker.ComposeConfig{
-				Project: cfg.StackName,
-				Files:   []string{cfg.ComposeFilePath(config.DefaultComposeFile)},
-			})
-			return compose.Down(cmd.Context())
+			ctx := cmd.Context()
+			if all {
+				return downAll(ctx)
+			}
+			if err := downStack(ctx, cfg.StackName); err != nil {
+				return err
+			}
+			return maybeDownProxy(ctx)
 		},
 	}
+	cmd.Flags().BoolVar(&all, "all", false, "Bring down every aspen stack and the proxy")
+	return cmd
+}
+
+func downStack(ctx context.Context, project string) error {
+	compose := docker.NewCompose(docker.ComposeConfig{
+		Project: project,
+		Files:   []string{cfg.ComposeFilePath(config.DefaultComposeFile)},
+	})
+	return compose.Down(ctx)
+}
+
+func downAll(ctx context.Context) error {
+	runner, err := docker.NewRunner()
+	if err != nil {
+		return err
+	}
+	defer runner.Close()
+
+	projects, err := runner.ComposeProjects(ctx, cfg.MainContainerService)
+	if err != nil {
+		return err
+	}
+	for _, project := range projects {
+		fmt.Printf("Bringing down %s\n", project)
+		if err := downStack(ctx, project); err != nil {
+			return err
+		}
+	}
+	return maybeDownProxy(ctx)
 }
