@@ -19,6 +19,7 @@ const (
 	EvergreenComposeFile = "docker-compose.evergreen.yml"
 	PluginsComposeFile   = "docker-compose.plugins.yml"
 	TestsComposeFile     = "docker-compose.tests.yml"
+	ProxyComposeFile     = "docker-compose.proxy.yml"
 )
 
 // Config holds all application configuration

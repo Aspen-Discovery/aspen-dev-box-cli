@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -302,4 +304,83 @@ func (r *SDKRunner) removeContainer(ctx context.Context, containerID string) {
 		Force:         true,
 		RemoveVolumes: true,
 	})
+}
+
+// EnsureNetwork creates the named docker network if it doesn't exist.
+func (r *SDKRunner) EnsureNetwork(ctx context.Context, name string) error {
+	if _, err := r.client.NetworkInspect(ctx, name, network.InspectOptions{}); err == nil {
+		return nil
+	} else if !client.IsErrNotFound(err) {
+		return fmt.Errorf("inspect network %s: %w", name, err)
+	}
+	if _, err := r.client.NetworkCreate(ctx, name, network.CreateOptions{}); err != nil {
+		return fmt.Errorf("create network %s: %w", name, err)
+	}
+	return nil
+}
+
+// ProxyInfo reports whether a traefik reverse proxy is serving the named
+// network, and the host port its web entrypoint (container port 80) is
+// published on.
+func (r *SDKRunner) ProxyInfo(ctx context.Context, networkName string) (bool, uint16, error) {
+	containers, err := r.client.ContainerList(ctx, container.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("network", networkName)),
+	})
+	if err != nil {
+		return false, 0, fmt.Errorf("list containers on %s: %w", networkName, err)
+	}
+	for _, c := range containers {
+		if !strings.Contains(c.Image, "traefik") {
+			continue
+		}
+		for _, p := range c.Ports {
+			if p.PrivatePort == 80 && p.PublicPort != 0 {
+				return true, p.PublicPort, nil
+			}
+		}
+		return true, 80, nil
+	}
+	return false, 0, nil
+}
+
+// ComposeProjects returns the distinct compose projects (running or stopped)
+// that include the given service.
+func (r *SDKRunner) ComposeProjects(ctx context.Context, service string) ([]string, error) {
+	containers, err := r.client.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filters.NewArgs(filters.Arg("label", "com.docker.compose.service="+service)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list %s containers: %w", service, err)
+	}
+	seen := map[string]bool{}
+	var projects []string
+	for _, c := range containers {
+		project := c.Labels["com.docker.compose.project"]
+		if project == "" || seen[project] {
+			continue
+		}
+		seen[project] = true
+		projects = append(projects, project)
+	}
+	return projects, nil
+}
+
+// ProxiedStacks counts the running compose projects routed through the aspen
+// proxy, excluding the proxy itself.
+func (r *SDKRunner) ProxiedStacks(ctx context.Context, proxyProject string) (int, error) {
+	containers, err := r.client.ContainerList(ctx, container.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("label", "aspen.proxy=true")),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("list proxied containers: %w", err)
+	}
+	seen := map[string]bool{}
+	for _, c := range containers {
+		project := c.Labels["com.docker.compose.project"]
+		if project != proxyProject {
+			seen[project] = true
+		}
+	}
+	return len(seen), nil
 }

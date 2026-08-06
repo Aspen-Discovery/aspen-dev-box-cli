@@ -28,6 +28,8 @@ func UpCommand() *cobra.Command {
 	var ilsFlag string
 	var pluginsPath string
 	var plugins bool
+	var noProxy bool
+	var host string
 
 	cmd := &cobra.Command{
 		Use:   "up",
@@ -64,6 +66,12 @@ YAML config, or "none" to skip ILS setup entirely.`,
 			}
 			files = append(files, pluginFiles...)
 
+			proxyFiles, err := setupProxy(ctx, noProxy, host)
+			if err != nil {
+				return err
+			}
+			files = append(files, proxyFiles...)
+
 			if pullUpdated {
 				if err := pullImagesFromFiles(ctx, files); err != nil {
 					return err
@@ -89,8 +97,58 @@ YAML config, or "none" to skip ILS setup entirely.`,
 	cmd.Flags().StringVarP(&ilsFlag, "ils", "i", "koha", "ILS preset name, path to YAML config, or 'none'")
 	cmd.Flags().BoolVar(&plugins, "plugins", false, "Mount a plugins dir into the container and enable aspen plugin loading")
 	cmd.Flags().StringVar(&pluginsPath, "plugins-path", "", "Host path of plugins dir (default: $ASPEN_PLUGINS or $ASPEN_DOCKER/plugins)")
+	cmd.Flags().BoolVar(&noProxy, "no-proxy", false, "Bind host ports even when the aspen proxy is running")
+	cmd.Flags().StringVar(&host, "host", "", "Hostname to serve when proxied (default: <stack>.localhost)")
 
 	return cmd
+}
+
+// setupProxy routes the stack through the aspen proxy, starting the proxy if
+// it isn't already running. The default instance is served on plain
+// localhost so localhost:8083 keeps working; named stacks and worktrees get
+// <stack>.localhost. The instance URL carries the proxy's published port
+// when it isn't 80.
+func setupProxy(ctx context.Context, disabled bool, host string) ([]string, error) {
+	if disabled {
+		if host != "" {
+			return nil, fmt.Errorf("--host conflicts with --no-proxy")
+		}
+		return nil, nil
+	}
+	port, err := ensureProxy(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if host == "" {
+		host = cfg.StackName + ".localhost"
+		if defaultInstance() {
+			host = "localhost"
+		}
+	}
+	// An ambient ASPEN_URL wins so callers like aspen-sandboxd can dictate
+	// the public URL (e.g. https behind their proxy config).
+	url := os.Getenv("ASPEN_URL")
+	if url == "" {
+		url = "http://" + host
+		if port != 80 {
+			url = fmt.Sprintf("%s:%d", url, port)
+		}
+		os.Setenv("ASPEN_URL", url)
+	}
+	os.Setenv("ASPEN_STACK", cfg.StackName)
+	os.Setenv("ASPEN_HOST", host)
+	overlay := cfg.ComposeFilePath(config.ProxyComposeFile)
+	if _, err := os.Stat(overlay); err != nil {
+		return nil, fmt.Errorf("proxy overlay missing: %s", overlay)
+	}
+	fmt.Printf("Aspen proxy detected — serving on %s\n", url)
+	return []string{overlay}, nil
+}
+
+// defaultInstance reports whether this is the plain adb up with no worktree
+// or custom stack name selected.
+func defaultInstance() bool {
+	return worktreeName == "" && cfg.StackName == filepath.Base(cfg.ProjectsDir)
 }
 
 func setupPlugins(enabled bool, path string) ([]string, error) {
