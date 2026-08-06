@@ -9,11 +9,14 @@ import (
 	"adb/pkg/docker"
 	"adb/pkg/worktree"
 
+	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+
 	"github.com/spf13/cobra"
 )
 
 var cfg *config.Config
 var worktreeName string
+var pickInteractive bool
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -38,10 +41,10 @@ For detailed information about each command, use 'adb help <command>'.`,
 	// Don't show usage on errors
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if worktreeName == "" {
+		if worktreeName == "" && !pickInteractive {
 			return nil
 		}
-		wt, err := worktree.Find(cmd.Context(), cfg.AspenCloneDir, worktreeName)
+		wt, err := resolveWorktree(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -59,6 +62,13 @@ func Execute() {
 	}
 }
 
+func resolveWorktree(ctx context.Context) (worktree.Worktree, error) {
+	if pickInteractive {
+		return pickWorktree(ctx)
+	}
+	return worktree.Find(ctx, cfg.AspenCloneDir, worktreeName)
+}
+
 func init() {
 	var err error
 	cfg, err = config.Load()
@@ -69,6 +79,28 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfg.StackName, "stack", cfg.StackName, "Docker compose project (stack) name")
 	rootCmd.PersistentFlags().StringVarP(&worktreeName, "worktree", "w", "", "Target a git worktree of $ASPEN_CLONE by directory or branch name")
+	rootCmd.PersistentFlags().BoolVarP(&pickInteractive, "interactive", "W", false, "Pick the target worktree with a fuzzy finder (-w seeds the query)")
+}
+
+func pickWorktree(ctx context.Context) (worktree.Worktree, error) {
+	trees, err := worktree.List(ctx, cfg.AspenCloneDir)
+	if err != nil {
+		return worktree.Worktree{}, err
+	}
+	idx, err := fuzzyfinder.Find(
+		trees,
+		func(i int) string {
+			if trees[i].Branch == "" {
+				return trees[i].Name
+			}
+			return trees[i].Name + " (" + trees[i].Branch + ")"
+		},
+		fuzzyfinder.WithQuery(worktreeName),
+	)
+	if err != nil {
+		return worktree.Worktree{}, fmt.Errorf("selection cancelled")
+	}
+	return trees[idx], nil
 }
 
 func resolveContainerConfig(runner *docker.SDKRunner) {
