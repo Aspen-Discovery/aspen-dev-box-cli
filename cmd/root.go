@@ -7,11 +7,13 @@ import (
 
 	"adb/pkg/config"
 	"adb/pkg/docker"
+	"adb/pkg/worktree"
 
 	"github.com/spf13/cobra"
 )
 
 var cfg *config.Config
+var worktreeName string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -35,6 +37,17 @@ For detailed information about each command, use 'adb help <command>'.`,
 	},
 	// Don't show usage on errors
 	SilenceUsage: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if worktreeName == "" {
+			return nil
+		}
+		wt, err := worktree.Find(cmd.Context(), cfg.AspenCloneDir, worktreeName)
+		if err != nil {
+			return err
+		}
+		cfg.UseWorktree(wt.Path, worktree.SafeName(wt.Name), cmd.Flags().Changed("stack"))
+		return nil
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -55,6 +68,7 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&cfg.StackName, "stack", cfg.StackName, "Docker compose project (stack) name")
+	rootCmd.PersistentFlags().StringVarP(&worktreeName, "worktree", "w", "", "Target a git worktree of $ASPEN_CLONE by directory or branch name")
 }
 
 func resolveContainerConfig(runner *docker.SDKRunner) {

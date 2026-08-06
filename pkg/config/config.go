@@ -98,6 +98,17 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// UseWorktree points the config at a worktree checkout: it becomes the aspen
+// clone and the given stack name takes over unless --stack was set, so every
+// command targets that instance.
+func (c *Config) UseWorktree(path, stack string, stackOverridden bool) {
+	c.AspenCloneDir = path
+	if !stackOverridden {
+		c.StackName = stack
+	}
+	os.Setenv("ASPEN_CLONE", path)
+}
+
 func resolveStackName(projectsDir string) string {
 	if v := os.Getenv("ASPEN_STACK"); v != "" {
 		return v
