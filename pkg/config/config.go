@@ -8,7 +8,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Docker compose files, relative to the compose/ directory
 const (
 	DefaultComposeFile   = "docker-compose.yml"
 	DebugComposeFile     = "docker-compose.debug.yml"
@@ -22,9 +21,7 @@ const (
 	ProxyComposeFile     = "docker-compose.proxy.yml"
 )
 
-// Config holds all application configuration
 type Config struct {
-	// Required - from environment
 	ProjectsDir   string
 	AspenCloneDir string
 
@@ -33,37 +30,31 @@ type Config struct {
 	MainContainerWorkDir string
 	DBContainerService   string
 
-	// Database settings
 	DBName     string
 	DBUser     string
 	DBPassword string
 
-	// Paths
 	LogPath            string
 	JSWorkDir          string
 	CSSBaseDir         string
 	JavaSharedLibsPath string
 
-	// Docker images
 	JavaBuildImage string
 	AlpineImage    string
 	LessImage      string
 
-	// Build settings
 	ExcludedJarPatterns []string
 	MergeJSScript       string
 	LessInputFile       string
 	LessOutputFile      string
 }
 
-// Load reads configuration from environment and .env file
 func Load() (*Config, error) {
 	if err := loadEnvFile(); err != nil {
 		return nil, err
 	}
 
 	cfg := &Config{
-		// Defaults
 		MainContainerService: "aspen-dev-box",
 		MainContainerWorkDir: "/usr/local/aspen-discovery",
 		DBContainerService:   "aspen-db",
@@ -83,7 +74,6 @@ func Load() (*Config, error) {
 		LessOutputFile:       "main.css",
 	}
 
-	// Required environment variables
 	cfg.ProjectsDir = os.Getenv("ASPEN_DOCKER")
 	if cfg.ProjectsDir == "" {
 		return nil, fmt.Errorf("ASPEN_DOCKER environment variable not set")
@@ -99,9 +89,6 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// UseWorktree points the config at a worktree checkout: it becomes the aspen
-// clone and the given stack name takes over unless --stack was set, so every
-// command targets that instance.
 func (c *Config) UseWorktree(path, stack string, stackOverridden bool) {
 	c.AspenCloneDir = path
 	if !stackOverridden {
@@ -120,7 +107,6 @@ func resolveStackName(projectsDir string) string {
 	return filepath.Base(projectsDir)
 }
 
-// loadEnvFile attempts to load .env file relative to binary location
 func loadEnvFile() error {
 	ex, err := os.Executable()
 	if err != nil {
@@ -128,7 +114,6 @@ func loadEnvFile() error {
 	}
 
 	binaryDir := filepath.Dir(ex)
-	// binary is in folder/bin/architecture/binary, .env is in folder/.env
 	envPath := filepath.Join(filepath.Dir(filepath.Dir(binaryDir)), ".env")
 
 	if err := godotenv.Load(envPath); err != nil && !os.IsNotExist(err) {
@@ -152,19 +137,14 @@ func (c *Config) ApplyContainerEnv(env map[string]string) {
 	}
 }
 
-// ComposeFilePath returns full path to a compose file
 func (c *Config) ComposeFilePath(filename string) string {
 	return filepath.Join(c.ProjectsDir, "compose", filename)
 }
 
-// ILSSQLPath returns the generated ILS setup SQL path for a stack. Scoped
-// per stack: the file is bind-mounted into the stack's db container and read
-// whenever that db (re)initialises, so stacks must not share it.
 func (c *Config) ILSSQLPath(stack string) string {
 	return filepath.Join(c.ProjectsDir, ".cache", stack+"-ils-setup.sql")
 }
 
-// DBConnectionString returns the mariadb connection string
 func (c *Config) DBConnectionString() string {
 	return fmt.Sprintf("-u%s -p%s %s", c.DBUser, c.DBPassword, c.DBName)
 }
@@ -181,7 +161,6 @@ func (c *Config) DBContainerName() string {
 	return c.ContainerName(c.DBContainerService)
 }
 
-// CSSDir returns the path to CSS directory, with optional RTL suffix
 func (c *Config) CSSDir(rtl bool) string {
 	dir := filepath.Join(c.AspenCloneDir, c.CSSBaseDir)
 	if rtl {
@@ -190,7 +169,6 @@ func (c *Config) CSSDir(rtl bool) string {
 	return dir
 }
 
-// CodeDir returns the path to the code directory
 func (c *Config) CodeDir() string {
 	return filepath.Join(c.AspenCloneDir, "code")
 }

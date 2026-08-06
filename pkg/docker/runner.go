@@ -307,7 +307,6 @@ func (r *SDKRunner) removeContainer(ctx context.Context, containerID string) {
 	})
 }
 
-// EnsureNetwork creates the named docker network if it doesn't exist.
 func (r *SDKRunner) EnsureNetwork(ctx context.Context, name string) error {
 	if _, err := r.client.NetworkInspect(ctx, name, network.InspectOptions{}); err == nil {
 		return nil
@@ -320,9 +319,6 @@ func (r *SDKRunner) EnsureNetwork(ctx context.Context, name string) error {
 	return nil
 }
 
-// ProxyInfo reports whether a traefik reverse proxy is serving the named
-// network, and the host port its web entrypoint (container port 80) is
-// published on.
 func (r *SDKRunner) ProxyInfo(ctx context.Context, networkName string) (bool, uint16, error) {
 	containers, err := r.client.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("network", networkName)),
@@ -344,8 +340,6 @@ func (r *SDKRunner) ProxyInfo(ctx context.Context, networkName string) (bool, ui
 	return false, 0, nil
 }
 
-// ComposeProjects returns the distinct compose projects (running or stopped)
-// that include the given service.
 func (r *SDKRunner) ComposeProjects(ctx context.Context, service string) ([]string, error) {
 	containers, err := r.client.ContainerList(ctx, container.ListOptions{
 		All:     true,
@@ -367,8 +361,6 @@ func (r *SDKRunner) ComposeProjects(ctx context.Context, service string) ([]stri
 	return projects, nil
 }
 
-// ProxiedStacks counts the running compose projects routed through the aspen
-// proxy, excluding the proxy itself.
 func (r *SDKRunner) ProxiedStacks(ctx context.Context, proxyProject string) (int, error) {
 	containers, err := r.client.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "aspen.proxy=true")),
@@ -386,9 +378,6 @@ func (r *SDKRunner) ProxiedStacks(ctx context.Context, proxyProject string) (int
 	return len(seen), nil
 }
 
-// RemoveProjectVolumes removes the named volumes compose created for a
-// project. Compose down only removes volumes declared in the files passed to
-// it, which misses volumes from overlays not part of the down invocation.
 func (r *SDKRunner) RemoveProjectVolumes(ctx context.Context, project string) error {
 	vols, err := r.client.VolumeList(ctx, volume.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.compose.project="+project)),

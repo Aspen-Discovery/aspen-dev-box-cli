@@ -1,7 +1,3 @@
-// Package worktree resolves git worktrees of the aspen-discovery clone so
-// several instances can run different branches side by side. Worktrees are
-// created and managed with plain git (git worktree add ...); this package
-// only parses what git reports.
 package worktree
 
 import (
@@ -19,22 +15,20 @@ type Worktree struct {
 	SHA    string
 }
 
-// SafeName turns a ref like "feature/DIS-1234" into a name usable as a
-// compose project and hostname label.
 func SafeName(ref string) string {
 	name := strings.ToLower(ref)
 	name = strings.NewReplacer("/", "-", "_", "-", ".", "-").Replace(name)
 	return strings.Trim(name, "-")
 }
 
-// Find matches a worktree of repo by directory name or branch.
 func Find(ctx context.Context, repo, name string) (Worktree, error) {
 	trees, err := List(ctx, repo)
 	if err != nil {
 		return Worktree{}, err
 	}
 	for _, t := range trees {
-		if t.Name == name || t.Branch == name || SafeName(t.Branch) == name {
+		matches := t.Name == name || t.Branch == name || SafeName(t.Branch) == name
+		if matches {
 			return t, nil
 		}
 	}
@@ -46,8 +40,6 @@ func Find(ctx context.Context, repo, name string) (Worktree, error) {
 		name, repo, strings.Join(names, ", "))
 }
 
-// List returns the worktrees of repo as reported by git, the main checkout
-// first.
 func List(ctx context.Context, repo string) ([]Worktree, error) {
 	out, err := output(ctx, repo, "worktree", "list", "--porcelain")
 	if err != nil {

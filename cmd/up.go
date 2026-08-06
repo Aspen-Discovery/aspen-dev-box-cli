@@ -103,30 +103,23 @@ YAML config, or "none" to skip ILS setup entirely.`,
 	return cmd
 }
 
-// setupProxy routes the stack through the aspen proxy, starting the proxy if
-// it isn't already running. The default instance is served on plain
-// localhost so localhost:8083 keeps working; named stacks and worktrees get
-// <stack>.localhost. The instance URL carries the proxy's published port
-// when it isn't 80.
 func setupProxy(ctx context.Context, disabled bool, host string) ([]string, error) {
+	if disabled && host != "" {
+		return nil, fmt.Errorf("--host conflicts with --no-proxy")
+	}
 	if disabled {
-		if host != "" {
-			return nil, fmt.Errorf("--host conflicts with --no-proxy")
-		}
 		return nil, nil
 	}
 	port, err := ensureProxy(ctx)
 	if err != nil {
 		return nil, err
 	}
+	if host == "" && defaultInstance() {
+		host = "localhost"
+	}
 	if host == "" {
 		host = cfg.StackName + ".localhost"
-		if defaultInstance() {
-			host = "localhost"
-		}
 	}
-	// An ambient ASPEN_URL wins so callers like aspen-sandboxd can dictate
-	// the public URL (e.g. https behind their proxy config).
 	url := os.Getenv("ASPEN_URL")
 	if url == "" {
 		url = "http://" + host
@@ -145,8 +138,6 @@ func setupProxy(ctx context.Context, disabled bool, host string) ([]string, erro
 	return []string{overlay}, nil
 }
 
-// defaultInstance reports whether this is the plain adb up with no worktree
-// or custom stack name selected.
 func defaultInstance() bool {
 	return worktreeName == "" && cfg.StackName == filepath.Base(cfg.ProjectsDir)
 }

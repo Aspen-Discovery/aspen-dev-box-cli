@@ -40,8 +40,6 @@ func proxyCompose() *docker.Compose {
 	})
 }
 
-// ensureProxy starts the aspen proxy if it isn't running and returns the
-// host port its web entrypoint is published on.
 func ensureProxy(ctx context.Context) (uint16, error) {
 	runner, err := docker.NewRunner()
 	if err != nil {
@@ -72,7 +70,6 @@ func ensureProxy(ctx context.Context) (uint16, error) {
 	return port, nil
 }
 
-// maybeDownProxy stops the proxy when no proxied stacks are left running.
 func maybeDownProxy(ctx context.Context) error {
 	runner, err := docker.NewRunner()
 	if err != nil {
