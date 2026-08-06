@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -383,4 +384,22 @@ func (r *SDKRunner) ProxiedStacks(ctx context.Context, proxyProject string) (int
 		}
 	}
 	return len(seen), nil
+}
+
+// RemoveProjectVolumes removes the named volumes compose created for a
+// project. Compose down only removes volumes declared in the files passed to
+// it, which misses volumes from overlays not part of the down invocation.
+func (r *SDKRunner) RemoveProjectVolumes(ctx context.Context, project string) error {
+	vols, err := r.client.VolumeList(ctx, volume.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("label", "com.docker.compose.project="+project)),
+	})
+	if err != nil {
+		return fmt.Errorf("list %s volumes: %w", project, err)
+	}
+	for _, v := range vols.Volumes {
+		if err := r.client.VolumeRemove(ctx, v.Name, false); err != nil {
+			return fmt.Errorf("remove volume %s: %w", v.Name, err)
+		}
+	}
+	return nil
 }

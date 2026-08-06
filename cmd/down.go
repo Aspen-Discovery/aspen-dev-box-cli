@@ -42,7 +42,15 @@ func downStack(ctx context.Context, project string) error {
 		Project: project,
 		Files:   []string{cfg.ComposeFilePath(config.DefaultComposeFile)},
 	})
-	return compose.Down(ctx)
+	if err := compose.Down(ctx); err != nil {
+		return err
+	}
+	runner, err := docker.NewRunner()
+	if err != nil {
+		return err
+	}
+	defer runner.Close()
+	return runner.RemoveProjectVolumes(ctx, project)
 }
 
 func downAll(ctx context.Context) error {

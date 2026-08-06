@@ -45,9 +45,12 @@ func (c *Compose) Pull(ctx context.Context) error {
 	return c.run(ctx, args)
 }
 
+// Down removes the project's containers and volumes. Volumes always go:
+// anonymous volumes (the db data) are unreachable after down anyway, so
+// keeping them only accumulates orphans.
 func (c *Compose) Down(ctx context.Context) error {
 	args := c.baseArgs()
-	args = append(args, "down", "--remove-orphans")
+	args = append(args, "down", "--volumes", "--remove-orphans")
 	return c.run(ctx, args)
 }
 
