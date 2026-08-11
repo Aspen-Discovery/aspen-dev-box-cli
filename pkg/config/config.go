@@ -18,7 +18,7 @@ const (
 	EvergreenComposeFile = "docker-compose.evergreen.yml"
 	PluginsComposeFile   = "docker-compose.plugins.yml"
 	TestsComposeFile     = "docker-compose.tests.yml"
-	ProxyComposeFile     = "docker-compose.proxy.yml"
+	ProxyComposeFile     = "docker-compose.proxied-instance.yml"
 )
 
 type Config struct {
