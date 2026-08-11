@@ -11,6 +11,7 @@ import (
 	"adb/pkg/ils"
 
 	"github.com/compose-spec/compose-go/loader"
+	"github.com/compose-spec/compose-go/template"
 	"github.com/spf13/cobra"
 )
 
@@ -234,6 +235,11 @@ func pullImagesFromFiles(ctx context.Context, files []string) error {
 			imageName, ok := serviceMap["image"].(string)
 			if !ok {
 				continue
+			}
+
+			imageName, err = template.Substitute(imageName, os.LookupEnv)
+			if err != nil {
+				return fmt.Errorf("resolve image for %s: %w", file, err)
 			}
 
 			fmt.Printf("Pulling image: %s\n", imageName)
