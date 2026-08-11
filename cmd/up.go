@@ -73,6 +73,8 @@ YAML config, or "none" to skip ILS setup entirely.`,
 			}
 			files = append(files, proxyFiles...)
 
+			setupSolrImage(cfg.AspenCloneDir)
+
 			if pullUpdated {
 				if err := pullImagesFromFiles(ctx, files); err != nil {
 					return err

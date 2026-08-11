@@ -29,6 +29,8 @@ Examples:
   adb pull -g -b        # Pull base + debug + phpmyadmin images
   adb pull --evergreen  # Pull base + evergreen images`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			setupSolrImage(cfg.AspenCloneDir)
+
 			files := []string{cfg.ComposeFilePath(config.DefaultComposeFile)}
 
 			if debugging {
