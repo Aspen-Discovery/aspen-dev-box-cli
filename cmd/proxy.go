@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"adb/pkg/docker"
@@ -26,7 +27,8 @@ hostname on the external "aspen-proxy" docker network. It is fully
 independent of koha-testing-docker's proxy; if that one holds ports 80/443,
 start this one elsewhere with PROXY_HTTP_PORT / PROXY_HTTPS_PORT.
 
-Dashboard: http://aspen-proxy.localhost`,
+Dashboard: http://localhost:8090/dashboard/ (override the port with
+PROXY_DASHBOARD_PORT)`,
 	}
 	cmd.AddCommand(proxyUpCommand(), proxyDownCommand())
 	return cmd
@@ -70,6 +72,13 @@ func ensureProxy(ctx context.Context) (uint16, error) {
 	return port, nil
 }
 
+func dashboardPort() string {
+	if v := os.Getenv("PROXY_DASHBOARD_PORT"); v != "" {
+		return v
+	}
+	return "8090"
+}
+
 func maybeDownProxy(ctx context.Context) error {
 	runner, err := docker.NewRunner()
 	if err != nil {
@@ -99,6 +108,7 @@ func proxyUpCommand() *cobra.Command {
 				return err
 			}
 			fmt.Printf("The aspen proxy is up on port %d\n", port)
+			fmt.Printf("Dashboard: http://localhost:%s/dashboard/\n", dashboardPort())
 			return nil
 		},
 	}
