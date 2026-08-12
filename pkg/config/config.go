@@ -9,16 +9,17 @@ import (
 )
 
 const (
-	DefaultComposeFile   = "docker-compose.yml"
-	DebugComposeFile     = "docker-compose.debug.yml"
-	JavaDebugComposeFile = "docker-compose.debug.java.yml"
-	DBGUIComposeFile     = "docker-compose.dbgui.yml"
-	ILSComposeFile       = "docker-compose.ils.yml"
-	KohaComposeFile      = "docker-compose.koha.yml"
-	EvergreenComposeFile = "docker-compose.evergreen.yml"
-	PluginsComposeFile   = "docker-compose.plugins.yml"
-	TestsComposeFile     = "docker-compose.tests.yml"
-	ProxyComposeFile     = "docker-compose.proxied-instance.yml"
+	DefaultComposeFile      = "docker-compose.yml"
+	DebugComposeFile        = "docker-compose.debug.yml"
+	JavaDebugComposeFile    = "docker-compose.debug.java.yml"
+	DBGUIComposeFile        = "docker-compose.dbgui.yml"
+	ILSComposeFile          = "docker-compose.ils.yml"
+	KohaComposeFile         = "docker-compose.koha.yml"
+	EvergreenComposeFile    = "docker-compose.evergreen.yml"
+	PluginsComposeFile      = "docker-compose.plugins.yml"
+	TestsComposeFile        = "docker-compose.tests.yml"
+	ProxyComposeFile        = "docker-compose.proxied-instance.yml"
+	ProxiedDBGUIComposeFile = "docker-compose.proxied-dbgui.yml"
 )
 
 type Config struct {

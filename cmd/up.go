@@ -73,6 +73,12 @@ YAML config, or "none" to skip ILS setup entirely.`,
 			}
 			files = append(files, proxyFiles...)
 
+			dbguiFiles, err := setupProxiedDBGUI(dbgui, len(proxyFiles) > 0)
+			if err != nil {
+				return err
+			}
+			files = append(files, dbguiFiles...)
+
 			setupSolrImage(cfg.AspenCloneDir)
 
 			if pullUpdated {
@@ -138,6 +144,17 @@ func setupProxy(ctx context.Context, disabled bool, host string) ([]string, erro
 		return nil, fmt.Errorf("proxy overlay missing: %s", overlay)
 	}
 	fmt.Printf("Aspen proxy detected — serving on %s\n", url)
+	return []string{overlay}, nil
+}
+
+func setupProxiedDBGUI(dbgui, proxied bool) ([]string, error) {
+	if !dbgui || !proxied {
+		return nil, nil
+	}
+	overlay := cfg.ComposeFilePath(config.ProxiedDBGUIComposeFile)
+	if _, err := os.Stat(overlay); err != nil {
+		return nil, fmt.Errorf("proxied dbgui overlay missing: %s", overlay)
+	}
 	return []string{overlay}, nil
 }
 
