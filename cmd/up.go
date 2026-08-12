@@ -47,10 +47,6 @@ YAML config, or "none" to skip ILS setup entirely.`,
 				files = append(files, cfg.ComposeFilePath(config.DebugComposeFile))
 			}
 
-			if javaDebug {
-				files = append(files, cfg.ComposeFilePath(config.JavaDebugComposeFile))
-			}
-
 			if dbgui {
 				files = append(files, cfg.ComposeFilePath(config.DBGUIComposeFile))
 			}
@@ -78,6 +74,10 @@ YAML config, or "none" to skip ILS setup entirely.`,
 				return err
 			}
 			files = append(files, dbguiFiles...)
+
+			if javaDebug {
+				files = append(files, cfg.ComposeFilePath(config.JavaDebugComposeFile))
+			}
 
 			setupSolrImage(cfg.AspenCloneDir)
 
