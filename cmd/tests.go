@@ -22,11 +22,13 @@ func TestsCommand() *cobra.Command {
 unit tests database. The dev database and running containers are not touched,
 so the stack must already be up (adb up -d).
 
-Extra arguments are passed through to phpunit.
+Extra arguments are passed through to phpunit, except --updatedb which makes
+the test bootstrap apply pending database updates after the fresh schema import.
 
 Examples:
   adb tests
-  adb tests --filter UserAPITests`,
+  adb tests --filter UserAPITests
+  adb tests --updatedb --filter UserAPITests`,
 		Args:               cobra.ArbitraryArgs,
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
