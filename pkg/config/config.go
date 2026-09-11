@@ -162,6 +162,14 @@ func (c *Config) ComposeFilePath(filename string) string {
 	return filepath.Join(c.ProjectsDir, "compose", filename)
 }
 
+func (c *Config) ProxyComposeFilePath() string {
+	return filepath.Join(c.ProjectsDir, "proxy", "docker-compose.yml")
+}
+
+func (c *Config) SnapshotPath(stack, name string) string {
+	return filepath.Join(c.ProjectsDir, ".cache", "snapshots", stack+"-"+name+".sql.gz")
+}
+
 func (c *Config) ILSSQLPath(stack string) string {
 	return filepath.Join(c.ProjectsDir, ".cache", stack+"-ils-setup.sql")
 }

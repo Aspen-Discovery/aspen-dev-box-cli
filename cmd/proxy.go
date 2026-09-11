@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"adb/pkg/docker"
 
@@ -37,7 +36,7 @@ PROXY_DASHBOARD_PORT)`,
 func proxyCompose() *docker.Compose {
 	return docker.NewCompose(docker.ComposeConfig{
 		Project:  proxyStack,
-		Files:    []string{filepath.Join(cfg.ProjectsDir, "proxy", "docker-compose.yml")},
+		Files:    []string{cfg.ProxyComposeFilePath()},
 		Detached: true,
 	})
 }

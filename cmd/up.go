@@ -10,8 +10,6 @@ import (
 	"adb/pkg/docker"
 	"adb/pkg/ils"
 
-	"github.com/compose-spec/compose-go/loader"
-	"github.com/compose-spec/compose-go/template"
 	"github.com/spf13/cobra"
 )
 
@@ -226,50 +224,14 @@ func setupILS(value, kohaStack string) ([]string, error) {
 }
 
 func pullImagesFromFiles(ctx context.Context, files []string) error {
+	images, err := imagesFromComposeFiles(files)
+	if err != nil {
+		return err
+	}
 	runner, err := docker.NewRunner()
 	if err != nil {
 		return fmt.Errorf("initialize docker: %w", err)
 	}
 	defer runner.Close()
-
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			return fmt.Errorf("read %s: %w", file, err)
-		}
-
-		loadedConfig, err := loader.ParseYAML(content)
-		if err != nil {
-			return fmt.Errorf("parse %s: %w", file, err)
-		}
-
-		services, ok := loadedConfig["services"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		for _, service := range services {
-			serviceMap, ok := service.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			imageName, ok := serviceMap["image"].(string)
-			if !ok {
-				continue
-			}
-
-			imageName, err = template.Substitute(imageName, os.LookupEnv)
-			if err != nil {
-				return fmt.Errorf("resolve image for %s: %w", file, err)
-			}
-
-			fmt.Printf("Pulling image: %s\n", imageName)
-			if err := runner.Pull(ctx, imageName); err != nil {
-				return fmt.Errorf("pull %s: %w", imageName, err)
-			}
-		}
-	}
-
-	return nil
+	return pullImages(ctx, runner, images)
 }
