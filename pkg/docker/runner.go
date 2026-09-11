@@ -174,6 +174,41 @@ func (r *SDKRunner) Exec(ctx context.Context, cfg ExecConfig) (*RunResult, error
 	}, nil
 }
 
+func (r *SDKRunner) ExecPipe(ctx context.Context, cfg ExecConfig, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	execCfg := container.ExecOptions{
+		Cmd:          cfg.Cmd,
+		WorkingDir:   cfg.WorkingDir,
+		User:         cfg.User,
+		Env:          cfg.Env,
+		AttachStdin:  stdin != nil,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execID, err := r.client.ContainerExecCreate(ctx, cfg.Container, execCfg)
+	if err != nil {
+		return 0, fmt.Errorf("create exec: %w", err)
+	}
+
+	resp, err := r.client.ContainerExecAttach(ctx, execID.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("attach exec: %w", err)
+	}
+	defer resp.Close()
+
+	if stdin != nil {
+		go func() {
+			io.Copy(resp.Conn, stdin)
+			resp.CloseWrite()
+		}()
+	}
+
+	if _, err := stdcopy.StdCopy(stdout, stderr, resp.Reader); err != nil {
+		return 0, fmt.Errorf("stream exec output: %w", err)
+	}
+	return r.waitForExec(ctx, execID.ID)
+}
+
 func (r *SDKRunner) ExecInteractive(ctx context.Context, cfg ExecConfig) error {
 	execCfg := container.ExecOptions{
 		Cmd:          cfg.Cmd,
