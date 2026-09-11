@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -40,6 +41,14 @@ type ExecConfig struct {
 	WorkingDir string
 	User       string
 	Env        []string
+}
+
+type ExitError struct {
+	Code int
+}
+
+func (e *ExitError) Error() string {
+	return fmt.Sprintf("exited with code %d", e.Code)
 }
 
 type Runner interface {
@@ -177,7 +186,32 @@ func (r *SDKRunner) ExecInteractive(ctx context.Context, cfg ExecConfig) error {
 	}()
 
 	<-outputDone
-	return nil
+
+	exitCode, err := r.waitForExec(ctx, execID.ID)
+	if err != nil {
+		return err
+	}
+	if exitCode == 0 {
+		return nil
+	}
+	return &ExitError{Code: exitCode}
+}
+
+func (r *SDKRunner) waitForExec(ctx context.Context, execID string) (int, error) {
+	for {
+		inspect, err := r.client.ContainerExecInspect(ctx, execID)
+		if err != nil {
+			return 0, fmt.Errorf("inspect exec: %w", err)
+		}
+		if !inspect.Running {
+			return inspect.ExitCode, nil
+		}
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
 }
 
 func (r *SDKRunner) resizeExecTTY(ctx context.Context, execID string, fd uintptr) {
