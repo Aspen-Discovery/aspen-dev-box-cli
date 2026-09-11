@@ -35,12 +35,13 @@ This tool provides a comprehensive set of commands to:
 For detailed information about each command, use 'adb help <command>'.`,
 	// Enable shell completion
 	CompletionOptions: cobra.CompletionOptions{
-		DisableDefaultCmd:   true,
+		DisableDefaultCmd:   false,
 		DisableNoDescFlag:   false,
 		DisableDescriptions: false,
 	},
 	// Don't show usage on errors
-	SilenceUsage: true,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if worktreeName == "" && !pickInteractive {
 			return nil
