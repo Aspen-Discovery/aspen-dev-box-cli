@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/go-connections/nat"
 	"github.com/moby/term"
 )
 
@@ -86,6 +87,18 @@ func (r *SDKRunner) ContainerRunning(ctx context.Context, containerName string) 
 		return false, fmt.Errorf("inspect container: %w", err)
 	}
 	return inspect.State != nil && inspect.State.Running, nil
+}
+
+func (r *SDKRunner) PublishedHostPort(ctx context.Context, containerName, containerPort string) (string, error) {
+	inspect, err := r.client.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return "", fmt.Errorf("inspect container: %w", err)
+	}
+	bindings := inspect.NetworkSettings.Ports[nat.Port(containerPort+"/tcp")]
+	if len(bindings) == 0 {
+		return "", nil
+	}
+	return bindings[0].HostPort, nil
 }
 
 func (r *SDKRunner) ContainerEnv(ctx context.Context, containerName string) (map[string]string, error) {

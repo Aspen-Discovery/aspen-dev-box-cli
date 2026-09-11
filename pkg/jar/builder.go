@@ -12,6 +12,9 @@ import (
 //go:embed scripts/build.sh
 var buildScript string
 
+//go:embed scripts/debug.sh
+var DebugScript string
+
 type BuildConfig struct {
 	AspenCloneDir   string
 	JavaImage       string

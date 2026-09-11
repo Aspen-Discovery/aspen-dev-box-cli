@@ -102,7 +102,7 @@ YAML config, or "none" to skip ILS setup entirely.`,
 	cmd.Flags().BoolVarP(&detached, "detached", "d", false, "Run in detached mode")
 	cmd.Flags().BoolVar(&wait, "wait", false, "Detach and block until every service reports healthy (aspen answers on port 80)")
 	cmd.Flags().BoolVarP(&debugging, "debugging", "g", false, "Run with debugging compose file")
-	cmd.Flags().BoolVarP(&javaDebug, "java-debug", "j", false, "Expose JDWP port 5005 and mount debug.sh for java debugging")
+	cmd.Flags().BoolVarP(&javaDebug, "java-debug", "j", false, "Expose JDWP port 5005 so adb debug can run java modules under a debugger")
 	cmd.Flags().BoolVarP(&dbgui, "dbgui", "b", false, "Run with dbgui compose file")
 	cmd.Flags().BoolVarP(&pullUpdated, "pull", "p", false, "Pull the images for the project only if they have been updated")
 	cmd.Flags().StringVarP(&kohaStack, "koha-stack", "k", "", "Koha stack to connect to (default: kohadev)")

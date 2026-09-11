@@ -70,6 +70,27 @@ func analyzeModule(name, modulePath string) (*Module, error) {
 	}, nil
 }
 
+func (m Module) MainClass() (string, error) {
+	content, err := os.ReadFile(filepath.Join(m.Path, m.ManifestPath))
+	if err != nil {
+		return "", fmt.Errorf("read manifest: %w", err)
+	}
+	mainClass := manifestMainClass(string(content))
+	if mainClass == "" {
+		return "", fmt.Errorf("no Main-Class in %s", m.ManifestPath)
+	}
+	return mainClass, nil
+}
+
+func manifestMainClass(manifest string) string {
+	for _, line := range strings.Split(manifest, "\n") {
+		if value, ok := strings.CutPrefix(line, "Main-Class:"); ok {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
 func detectManifestPath(modulePath string) string {
 	rootManifest := filepath.Join(modulePath, "META-INF", "MANIFEST.MF")
 	if _, err := os.Stat(rootManifest); err == nil {

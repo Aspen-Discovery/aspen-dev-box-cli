@@ -7,12 +7,14 @@ toolchain go1.24.2
 require (
 	github.com/compose-spec/compose-go v1.20.2
 	github.com/docker/docker v28.5.2+incompatible
+	github.com/docker/go-connections v0.4.0
 	github.com/fatih/color v1.18.0
 	github.com/joho/godotenv v1.5.1
 	github.com/k3a/html2text v1.3.0
 	github.com/ktr0731/go-fuzzyfinder v0.9.0
 	github.com/moby/term v0.5.2
 	github.com/spf13/cobra v1.8.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -24,7 +26,6 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.5.0 // indirect
-	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
@@ -67,5 +68,4 @@ require (
 	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
