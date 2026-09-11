@@ -37,22 +37,25 @@ jobs:
         mkdir -p bin/darwin
         mkdir -p bin/windows
 
+    - name: Set build version
+      run: echo "LDFLAGS=-X adb/cmd.version=$(git describe --tags --always)" >> "$GITHUB_ENV"
+
     - name: Build Linux binary
       run: |
         # Build for Linux
-        GOOS=linux GOARCH=amd64 go build -o bin/linux/adb .
+        GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/linux/adb .
 
     - name: Build Windows binary
       run: |
         # Build for Windows
-        GOOS=windows GOARCH=amd64 go build -o bin/windows/adb.exe .
+        GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/windows/adb.exe .
 
     - name: Build macOS Universal binary
       run: |
         # Build for Intel Macs
-        GOOS=darwin GOARCH=amd64 go build -o bin/darwin/adb-amd64 .
+        GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/darwin/adb-amd64 .
         # Build for Apple Silicon
-        GOOS=darwin GOARCH=arm64 go build -o bin/darwin/adb-arm64 .
+        GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/darwin/adb-arm64 .
         # Create universal binary
         lipo -create -output bin/darwin/adb bin/darwin/adb-amd64 bin/darwin/adb-arm64
         # Clean up intermediate files
