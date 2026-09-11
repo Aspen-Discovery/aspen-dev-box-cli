@@ -19,10 +19,16 @@ func JarBuildCommand() *cobra.Command {
 	var all bool
 
 	cmd := &cobra.Command{
-		Use:   "jarbuild",
+		Use:   "jarbuild [module]",
 		Short: "Build Java JAR files",
 		Long: `Build Java JAR files from source code.
-This command can build either a single JAR file selected interactively or all JAR files at once.`,
+Pass a module name to build that JAR, use --all to build every JAR, or run
+without arguments to pick a module interactively.
+
+Examples:
+  adb jarbuild reindexer
+  adb jarbuild --all`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner, err := docker.NewRunner()
 			if err != nil {
@@ -41,6 +47,9 @@ This command can build either a single JAR file selected interactively or all JA
 
 			if all {
 				return builder.BuildAll(ctx)
+			}
+			if len(args) == 1 {
+				return buildNamedJar(ctx, builder, args[0])
 			}
 			return buildSingleJar(ctx, builder)
 		},
@@ -69,11 +78,13 @@ func buildSingleJar(ctx context.Context, builder *jar.Builder) error {
 		return fmt.Errorf("fuzzy finder: %w", err)
 	}
 
-	codeDir := cfg.CodeDir()
-	module, err := jar.FindModule(codeDir, names[idx])
+	return buildNamedJar(ctx, builder, names[idx])
+}
+
+func buildNamedJar(ctx context.Context, builder *jar.Builder, name string) error {
+	module, err := jar.FindModule(cfg.CodeDir(), name)
 	if err != nil {
 		return err
 	}
-
 	return builder.Build(ctx, *module)
 }
