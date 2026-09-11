@@ -63,7 +63,7 @@ func Load() (*Config, error) {
 		JSWorkDir:            "/usr/local/aspen-discovery/code/web/interface/themes/responsive/js",
 		CSSBaseDir:           "/code/web/interface/themes/responsive/css",
 		JavaSharedLibsPath:   "/app/code/java_shared_libraries",
-		JavaBuildImage:       "adoptopenjdk:11",
+		JavaBuildImage:       "eclipse-temurin:17",
 		AlpineImage:          "alpine:latest",
 		LessImage:            "ghcr.io/sndsgd/less",
 		ExcludedJarPatterns:  []string{"java_shared_libraries"},
