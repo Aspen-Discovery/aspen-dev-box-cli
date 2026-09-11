@@ -19,6 +19,7 @@ func init() {
 
 func UpCommand() *cobra.Command {
 	var detached bool
+	var noCron bool
 	var wait bool
 	var debugging bool
 	var javaDebug bool
@@ -41,6 +42,10 @@ YAML config, or "none" to skip ILS setup entirely.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			files := []string{cfg.ComposeFilePath(config.DefaultComposeFile)}
+
+			if noCron {
+				os.Setenv("ASPEN_CRON", "0")
+			}
 
 			if debugging {
 				files = append(files, cfg.ComposeFilePath(config.DebugComposeFile))
@@ -98,6 +103,7 @@ YAML config, or "none" to skip ILS setup entirely.`,
 	}
 
 	cmd.Flags().BoolVarP(&detached, "detached", "d", false, "Run in detached mode")
+	cmd.Flags().BoolVar(&noCron, "no-cron", false, "Boot without cron so scheduled jobs do not run (adb cron start turns it on)")
 	cmd.Flags().BoolVar(&wait, "wait", false, "Detach and block until every service reports healthy (aspen answers on port 80)")
 	cmd.Flags().BoolVarP(&debugging, "debugging", "g", false, "Run with debugging compose file")
 	cmd.Flags().BoolVarP(&javaDebug, "java-debug", "j", false, "Expose JDWP port 5005 so adb debug can run java modules under a debugger")
