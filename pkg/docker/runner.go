@@ -497,37 +497,88 @@ func (r *SDKRunner) ComposeProjects(ctx context.Context, service string) ([]stri
 }
 
 type StackSummary struct {
-	Project string
-	State   string
-	Health  string
-	URL     string
-	Clone   string
-	ILS     string
+	Project  string
+	State    string
+	Health   string
+	URL      string
+	Clone    string
+	ILS      string
+	Services map[string]string
 }
 
 func (r *SDKRunner) StackSummaries(ctx context.Context, mainService string) ([]StackSummary, error) {
 	containers, err := r.client.ContainerList(ctx, container.ListOptions{
 		All:     true,
-		Filters: filters.NewArgs(filters.Arg("label", "com.docker.compose.service="+mainService)),
+		Filters: filters.NewArgs(filters.Arg("label", "com.docker.compose.project")),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("list %s containers: %w", mainService, err)
+		return nil, fmt.Errorf("list compose containers: %w", err)
+	}
+
+	byProject := map[string][]container.Summary{}
+	for _, c := range containers {
+		project := c.Labels["com.docker.compose.project"]
+		byProject[project] = append(byProject[project], c)
 	}
 
 	var stacks []StackSummary
-	for _, c := range containers {
-		project := c.Labels["com.docker.compose.project"]
-		if project == "" {
+	for project, members := range byProject {
+		main := findService(members, mainService)
+		if main == nil {
 			continue
 		}
-		inspect, err := r.client.ContainerInspect(ctx, c.ID)
+		inspect, err := r.client.ContainerInspect(ctx, main.ID)
 		if err != nil {
-			return nil, fmt.Errorf("inspect %s: %w", c.ID, err)
+			return nil, fmt.Errorf("inspect %s: %w", main.ID, err)
 		}
-		stacks = append(stacks, summarizeStack(project, inspect))
+		summary := summarizeStack(project, inspect)
+		summary.Services = summarizeServices(members)
+		stacks = append(stacks, summary)
 	}
 	sort.Slice(stacks, func(i, j int) bool { return stacks[i].Project < stacks[j].Project })
 	return stacks, nil
+}
+
+func findService(members []container.Summary, service string) *container.Summary {
+	for i := range members {
+		if members[i].Labels["com.docker.compose.service"] == service {
+			return &members[i]
+		}
+	}
+	return nil
+}
+
+func summarizeServices(members []container.Summary) map[string]string {
+	services := map[string]string{}
+	for _, c := range members {
+		services[c.Labels["com.docker.compose.service"]] = containerState(c)
+	}
+	return services
+}
+
+func containerState(c container.Summary) string {
+	if strings.Contains(c.Status, "(healthy)") {
+		return "healthy"
+	}
+	if strings.Contains(c.Status, "(unhealthy)") {
+		return "unhealthy"
+	}
+	if strings.Contains(c.Status, "(health: starting)") {
+		return "starting"
+	}
+	if c.State == "exited" {
+		return "exited" + exitCodeSuffix(c.Status)
+	}
+	return c.State
+}
+
+func exitCodeSuffix(status string) string {
+	start := strings.Index(status, "(")
+	end := strings.Index(status, ")")
+	if start < 0 || end < start {
+		return ""
+	}
+	return status[start : end+1]
 }
 
 func summarizeStack(project string, inspect container.InspectResponse) StackSummary {
