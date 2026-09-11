@@ -19,6 +19,7 @@ type Composer interface {
 	Up(ctx context.Context) error
 	Pull(ctx context.Context) error
 	Down(ctx context.Context) error
+	DownKeepingVolumes(ctx context.Context) error
 }
 
 type Compose struct {
@@ -50,8 +51,19 @@ func (c *Compose) Pull(ctx context.Context) error {
 }
 
 func (c *Compose) Down(ctx context.Context) error {
+	return c.down(ctx, false)
+}
+
+func (c *Compose) DownKeepingVolumes(ctx context.Context) error {
+	return c.down(ctx, true)
+}
+
+func (c *Compose) down(ctx context.Context, keepVolumes bool) error {
 	args := c.baseArgs()
-	args = append(args, "down", "--volumes", "--remove-orphans")
+	args = append(args, "down", "--remove-orphans")
+	if !keepVolumes {
+		args = append(args, "--volumes")
+	}
 	return c.run(ctx, args)
 }
 
