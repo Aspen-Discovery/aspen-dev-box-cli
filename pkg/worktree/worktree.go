@@ -45,7 +45,10 @@ func List(ctx context.Context, repo string) ([]Worktree, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parsePorcelain(out), nil
+}
 
+func parsePorcelain(out string) []Worktree {
 	var trees []Worktree
 	var current Worktree
 	for _, line := range strings.Split(out, "\n") {
@@ -64,7 +67,10 @@ func List(ctx context.Context, repo string) ([]Worktree, error) {
 			current = Worktree{}
 		}
 	}
-	return trees, nil
+	if current.Path != "" {
+		trees = append(trees, current)
+	}
+	return trees
 }
 
 func output(ctx context.Context, repo string, args ...string) (string, error) {
