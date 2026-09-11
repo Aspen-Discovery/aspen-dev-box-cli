@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -393,6 +394,66 @@ func (r *SDKRunner) ComposeProjects(ctx context.Context, service string) ([]stri
 		projects = append(projects, project)
 	}
 	return projects, nil
+}
+
+type StackSummary struct {
+	Project string
+	State   string
+	Health  string
+	URL     string
+	Clone   string
+	ILS     string
+}
+
+func (r *SDKRunner) StackSummaries(ctx context.Context, mainService string) ([]StackSummary, error) {
+	containers, err := r.client.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filters.NewArgs(filters.Arg("label", "com.docker.compose.service="+mainService)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list %s containers: %w", mainService, err)
+	}
+
+	var stacks []StackSummary
+	for _, c := range containers {
+		project := c.Labels["com.docker.compose.project"]
+		if project == "" {
+			continue
+		}
+		inspect, err := r.client.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			return nil, fmt.Errorf("inspect %s: %w", c.ID, err)
+		}
+		stacks = append(stacks, summarizeStack(project, inspect))
+	}
+	sort.Slice(stacks, func(i, j int) bool { return stacks[i].Project < stacks[j].Project })
+	return stacks, nil
+}
+
+func summarizeStack(project string, inspect container.InspectResponse) StackSummary {
+	summary := StackSummary{Project: project, State: inspect.State.Status, ILS: "none"}
+	if inspect.State.Health != nil {
+		summary.Health = inspect.State.Health.Status
+	}
+	for _, e := range inspect.Config.Env {
+		if v, ok := strings.CutPrefix(e, "URL="); ok {
+			summary.URL = v
+		}
+	}
+	for _, m := range inspect.Mounts {
+		if m.Destination == "/usr/local/aspen-discovery" {
+			summary.Clone = strings.TrimPrefix(m.Source, "/host_mnt")
+		}
+	}
+	for name := range inspect.NetworkSettings.Networks {
+		if strings.HasSuffix(name, "_kohanet") {
+			summary.ILS = "koha"
+		}
+		if name == "evergreen-net" {
+			summary.ILS = "evergreen"
+		}
+	}
+	return summary
 }
 
 func (r *SDKRunner) ProxiedStacks(ctx context.Context, proxyProject string) (int, error) {
