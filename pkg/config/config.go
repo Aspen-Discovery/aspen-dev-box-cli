@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -85,8 +86,23 @@ func Load() (*Config, error) {
 	}
 
 	cfg.StackName = resolveStackName(cfg.ProjectsDir)
+	exportHostIDs()
 
 	return cfg, nil
+}
+
+func exportHostIDs() {
+	uid, gid := os.Getuid(), os.Getgid()
+	unsupportedPlatform := uid < 0 || gid < 0
+	if unsupportedPlatform {
+		return
+	}
+	if os.Getenv("UID") == "" {
+		os.Setenv("UID", strconv.Itoa(uid))
+	}
+	if os.Getenv("GID") == "" {
+		os.Setenv("GID", strconv.Itoa(gid))
+	}
 }
 
 func (c *Config) UseWorktree(path, stack string, stackOverridden bool) {

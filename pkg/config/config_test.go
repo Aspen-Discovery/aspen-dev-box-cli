@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -38,6 +39,42 @@ func TestLoadDoesNotOverrideExistingEnv(t *testing.T) {
 	}
 	if got := os.Getenv("ADB_TEST_PRESET"); got != "shell" {
 		t.Errorf("shell env should win over .env, got %q", got)
+	}
+}
+
+func TestLoadExportsHostIDsWhenUnset(t *testing.T) {
+	if os.Getuid() < 0 {
+		t.Skip("no numeric uid on this platform")
+	}
+	t.Setenv("ASPEN_DOCKER", t.TempDir())
+	t.Setenv("ASPEN_CLONE", t.TempDir())
+	t.Setenv("UID", "")
+	t.Setenv("GID", "")
+	os.Unsetenv("UID")
+	os.Unsetenv("GID")
+
+	if _, err := Load(); err != nil {
+		t.Fatal(err)
+	}
+	if got := os.Getenv("UID"); got != strconv.Itoa(os.Getuid()) {
+		t.Errorf("UID = %q, want %d", got, os.Getuid())
+	}
+	if got := os.Getenv("GID"); got != strconv.Itoa(os.Getgid()) {
+		t.Errorf("GID = %q, want %d", got, os.Getgid())
+	}
+}
+
+func TestLoadKeepsExportedHostIDs(t *testing.T) {
+	t.Setenv("ASPEN_DOCKER", t.TempDir())
+	t.Setenv("ASPEN_CLONE", t.TempDir())
+	t.Setenv("UID", "4242")
+	t.Setenv("GID", "4343")
+
+	if _, err := Load(); err != nil {
+		t.Fatal(err)
+	}
+	if os.Getenv("UID") != "4242" || os.Getenv("GID") != "4343" {
+		t.Errorf("exported UID/GID must win, got %s/%s", os.Getenv("UID"), os.Getenv("GID"))
 	}
 }
 
