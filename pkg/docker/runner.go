@@ -102,6 +102,29 @@ func (r *SDKRunner) ContainerEnv(ctx context.Context, containerName string) (map
 	return envs, nil
 }
 
+func (r *SDKRunner) StreamContainerLogs(ctx context.Context, containerName string, follow bool) error {
+	inspect, err := r.client.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return fmt.Errorf("inspect container: %w", err)
+	}
+	reader, err := r.client.ContainerLogs(ctx, containerName, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     follow,
+	})
+	if err != nil {
+		return fmt.Errorf("container logs: %w", err)
+	}
+	defer reader.Close()
+
+	if inspect.Config.Tty {
+		_, err = io.Copy(os.Stdout, reader)
+		return err
+	}
+	_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, reader)
+	return err
+}
+
 func (r *SDKRunner) Exec(ctx context.Context, cfg ExecConfig) (*RunResult, error) {
 	execCfg := container.ExecOptions{
 		Cmd:          cfg.Cmd,
