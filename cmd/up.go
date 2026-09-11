@@ -21,6 +21,7 @@ func init() {
 
 func UpCommand() *cobra.Command {
 	var detached bool
+	var wait bool
 	var debugging bool
 	var javaDebug bool
 	var dbgui bool
@@ -90,7 +91,8 @@ YAML config, or "none" to skip ILS setup entirely.`,
 			compose := docker.NewCompose(docker.ComposeConfig{
 				Project:  cfg.StackName,
 				Files:    files,
-				Detached: detached,
+				Detached: detached || wait,
+				Wait:     wait,
 			})
 
 			return compose.Up(ctx)
@@ -98,6 +100,7 @@ YAML config, or "none" to skip ILS setup entirely.`,
 	}
 
 	cmd.Flags().BoolVarP(&detached, "detached", "d", false, "Run in detached mode")
+	cmd.Flags().BoolVar(&wait, "wait", false, "Detach and block until every service reports healthy (aspen answers on port 80)")
 	cmd.Flags().BoolVarP(&debugging, "debugging", "g", false, "Run with debugging compose file")
 	cmd.Flags().BoolVarP(&javaDebug, "java-debug", "j", false, "Expose JDWP port 5005 and mount debug.sh for java debugging")
 	cmd.Flags().BoolVarP(&dbgui, "dbgui", "b", false, "Run with dbgui compose file")

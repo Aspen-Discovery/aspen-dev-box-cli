@@ -11,6 +11,7 @@ type ComposeConfig struct {
 	Project  string
 	Files    []string
 	Detached bool
+	Wait     bool
 	Quiet    bool
 }
 
@@ -34,6 +35,9 @@ func (c *Compose) Up(ctx context.Context) error {
 
 	if c.config.Detached {
 		args = append(args, "-d")
+	}
+	if c.config.Wait {
+		args = append(args, "--wait")
 	}
 
 	return c.run(ctx, args)
