@@ -51,10 +51,6 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	if err := loadEnvFile(); err != nil {
-		return nil, err
-	}
-
 	cfg := &Config{
 		MainContainerService: "aspen-dev-box",
 		MainContainerWorkDir: "/usr/local/aspen-discovery",
@@ -78,6 +74,9 @@ func Load() (*Config, error) {
 	cfg.ProjectsDir = os.Getenv("ASPEN_DOCKER")
 	if cfg.ProjectsDir == "" {
 		return nil, fmt.Errorf("ASPEN_DOCKER environment variable not set")
+	}
+	if err := loadEnvFile(cfg.EnvFilePath()); err != nil {
+		return nil, err
 	}
 
 	cfg.AspenCloneDir = os.Getenv("ASPEN_CLONE")
@@ -108,19 +107,15 @@ func resolveStackName(projectsDir string) string {
 	return filepath.Base(projectsDir)
 }
 
-func loadEnvFile() error {
-	ex, err := os.Executable()
-	if err != nil {
-		return nil // Not fatal - env vars might be set directly
-	}
-
-	binaryDir := filepath.Dir(ex)
-	envPath := filepath.Join(filepath.Dir(filepath.Dir(binaryDir)), ".env")
-
+func loadEnvFile(envPath string) error {
 	if err := godotenv.Load(envPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("load .env file: %w", err)
 	}
 	return nil
+}
+
+func (c *Config) EnvFilePath() string {
+	return filepath.Join(c.ProjectsDir, ".env")
 }
 
 func (c *Config) ApplyContainerEnv(env map[string]string) {
