@@ -73,22 +73,25 @@ func Load() (*Config, error) {
 	}
 
 	cfg.ProjectsDir = os.Getenv("ASPEN_DOCKER")
-	if cfg.ProjectsDir == "" {
-		return nil, fmt.Errorf("ASPEN_DOCKER environment variable not set")
-	}
 	if err := loadEnvFile(cfg.EnvFilePath()); err != nil {
 		return nil, err
 	}
 
 	cfg.AspenCloneDir = os.Getenv("ASPEN_CLONE")
-	if cfg.AspenCloneDir == "" {
-		return nil, fmt.Errorf("ASPEN_CLONE environment variable not set")
-	}
-
 	cfg.StackName = resolveStackName(cfg.ProjectsDir)
 	exportHostIDs()
 
 	return cfg, nil
+}
+
+func (c *Config) Validate() error {
+	if c.ProjectsDir == "" {
+		return fmt.Errorf("ASPEN_DOCKER environment variable not set")
+	}
+	if c.AspenCloneDir == "" {
+		return fmt.Errorf("ASPEN_CLONE environment variable not set")
+	}
+	return nil
 }
 
 func exportHostIDs() {
@@ -124,6 +127,9 @@ func resolveStackName(projectsDir string) string {
 }
 
 func loadEnvFile(envPath string) error {
+	if envPath == "" {
+		return nil
+	}
 	if err := godotenv.Load(envPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("load .env file: %w", err)
 	}
@@ -131,6 +137,9 @@ func loadEnvFile(envPath string) error {
 }
 
 func (c *Config) EnvFilePath() string {
+	if c.ProjectsDir == "" {
+		return ""
+	}
 	return filepath.Join(c.ProjectsDir, ".env")
 }
 

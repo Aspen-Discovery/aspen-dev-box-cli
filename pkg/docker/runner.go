@@ -365,6 +365,35 @@ func (r *SDKRunner) removeContainer(ctx context.Context, containerID string) {
 	})
 }
 
+func (r *SDKRunner) Ping(ctx context.Context) error {
+	_, err := r.client.Ping(ctx)
+	return err
+}
+
+func (r *SDKRunner) NetworkExists(ctx context.Context, name string) (bool, error) {
+	_, err := r.client.NetworkInspect(ctx, name, network.InspectOptions{})
+	if err == nil {
+		return true, nil
+	}
+	if client.IsErrNotFound(err) {
+		return false, nil
+	}
+	return false, fmt.Errorf("inspect network %s: %w", name, err)
+}
+
+func (r *SDKRunner) PublishedPortOwner(ctx context.Context, port string) (string, error) {
+	containers, err := r.client.ContainerList(ctx, container.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("publish", port)),
+	})
+	if err != nil {
+		return "", fmt.Errorf("list containers publishing %s: %w", port, err)
+	}
+	if len(containers) == 0 || len(containers[0].Names) == 0 {
+		return "", nil
+	}
+	return strings.TrimPrefix(containers[0].Names[0], "/"), nil
+}
+
 func (r *SDKRunner) EnsureNetwork(ctx context.Context, name string) error {
 	if _, err := r.client.NetworkInspect(ctx, name, network.InspectOptions{}); err == nil {
 		return nil

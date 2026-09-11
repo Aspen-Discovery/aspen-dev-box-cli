@@ -78,10 +78,42 @@ func TestLoadKeepsExportedHostIDs(t *testing.T) {
 	}
 }
 
-func TestLoadRequiresAspenDocker(t *testing.T) {
+func TestResolveStackNamePrecedence(t *testing.T) {
+	t.Setenv("ASPEN_STACK", "")
+	t.Setenv("COMPOSE_PROJECT_NAME", "")
+	if got := resolveStackName("/home/dev/aspen-dev-box"); got != "aspen-dev-box" {
+		t.Errorf("default stack should be the basename, got %q", got)
+	}
+
+	t.Setenv("COMPOSE_PROJECT_NAME", "from-compose")
+	if got := resolveStackName("/home/dev/aspen-dev-box"); got != "from-compose" {
+		t.Errorf("COMPOSE_PROJECT_NAME should win over basename, got %q", got)
+	}
+
+	t.Setenv("ASPEN_STACK", "from-aspen-stack")
+	if got := resolveStackName("/home/dev/aspen-dev-box"); got != "from-aspen-stack" {
+		t.Errorf("ASPEN_STACK should win over everything, got %q", got)
+	}
+}
+
+func TestValidateRequiresBothDirs(t *testing.T) {
 	t.Setenv("ASPEN_DOCKER", "")
-	t.Setenv("ASPEN_CLONE", t.TempDir())
-	if _, err := Load(); err == nil {
-		t.Error("expected an error when ASPEN_DOCKER is unset")
+	t.Setenv("ASPEN_CLONE", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load must not fail on missing env so adb doctor can run: %v", err)
+	}
+	if cfg.Validate() == nil {
+		t.Error("expected Validate to fail when ASPEN_DOCKER is unset")
+	}
+
+	cfg.ProjectsDir = t.TempDir()
+	if cfg.Validate() == nil {
+		t.Error("expected Validate to fail when ASPEN_CLONE is unset")
+	}
+
+	cfg.AspenCloneDir = t.TempDir()
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("expected Validate to pass, got %v", err)
 	}
 }

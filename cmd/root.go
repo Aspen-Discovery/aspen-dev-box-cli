@@ -43,6 +43,9 @@ For detailed information about each command, use 'adb help <command>'.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := validateConfig(cmd); err != nil {
+			return err
+		}
 		if worktreeName == "" && !pickInteractive {
 			return nil
 		}
@@ -68,6 +71,13 @@ func Execute() {
 	}
 	fmt.Println(err)
 	os.Exit(1)
+}
+
+func validateConfig(cmd *cobra.Command) error {
+	if cmd.Annotations[skipConfigValidation] != "" {
+		return nil
+	}
+	return cfg.Validate()
 }
 
 func resolveWorktree(ctx context.Context) (worktree.Worktree, error) {
