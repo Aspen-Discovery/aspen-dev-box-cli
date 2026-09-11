@@ -51,6 +51,18 @@ func (c *Compose) Down(ctx context.Context) error {
 	return c.run(ctx, args)
 }
 
+func (c *Compose) Stop(ctx context.Context, services ...string) error {
+	return c.run(ctx, append(append(c.baseArgs(), "stop"), services...))
+}
+
+func (c *Compose) Start(ctx context.Context, services ...string) error {
+	return c.run(ctx, append(append(c.baseArgs(), "start"), services...))
+}
+
+func (c *Compose) Restart(ctx context.Context, services ...string) error {
+	return c.run(ctx, append(append(c.baseArgs(), "restart"), services...))
+}
+
 func (c *Compose) RunService(ctx context.Context, service string, extra []string) error {
 	args := c.baseArgs()
 	args = append(args, "run", "--rm", "--no-deps", service)
