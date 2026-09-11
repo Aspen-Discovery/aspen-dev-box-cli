@@ -34,7 +34,7 @@ func RunCommand() *cobra.Command {
 		Long:  "Run 'adb run list' to see available jobs.\n\nJAR jobs are discovered from the aspen clone; any module under code/ with a\nbuilt <module>.jar is runnable by its module name.\n\nExamples:\n  adb run koha_export\n  adb run reindexer nightly\n  adb run list",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			jobs, err := aspenJobs()
+			jobs, err := discoverJobs(cfg.CodeDir())
 			if err != nil {
 				return err
 			}
@@ -54,13 +54,13 @@ func RunCommand() *cobra.Command {
 	}
 }
 
-func aspenJobs() (map[string]aspenJob, error) {
+func discoverJobs(codeDir string) (map[string]aspenJob, error) {
 	jobs := make(map[string]aspenJob, len(phpJobs))
 	for name, job := range phpJobs {
 		jobs[name] = job
 	}
 
-	entries, err := os.ReadDir(cfg.CodeDir())
+	entries, err := os.ReadDir(codeDir)
 	if err != nil {
 		return nil, fmt.Errorf("read aspen code dir: %w", err)
 	}
@@ -69,7 +69,7 @@ func aspenJobs() (map[string]aspenJob, error) {
 			continue
 		}
 		name := entry.Name()
-		if _, err := os.Stat(filepath.Join(cfg.CodeDir(), name, name+".jar")); err != nil {
+		if _, err := os.Stat(filepath.Join(codeDir, name, name+".jar")); err != nil {
 			continue
 		}
 		jobs[name] = aspenJob{
