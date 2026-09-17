@@ -20,18 +20,34 @@ if grep -rq "import com.turning_leaf_technologies" src/ 2>/dev/null; then
     NEEDS_SHARED_LIBS=true
 fi
 
+copy_resources() {
+    local source_root="$1"
+    local target_dir="$2"
+    if [ ! -d "$source_root" ]; then
+        return 0
+    fi
+    (cd "$source_root" && find . -type f ! -name '*.java' -exec cp --parents -t "$target_dir" {} +)
+}
+
 mkdir -p bin
+BIN_DIR="$(pwd)/bin"
 
 MODULE_JAR="$(pwd)/$(basename "$(pwd)").jar"
 CLASSPATH=$(find /app -name '*.jar' | grep -v "$MODULE_JAR" | tr '\n' ':')
 
+SOURCE_ROOTS=(src)
 if [ "$NEEDS_SHARED_LIBS" = "true" ]; then
     echo "Compiling with shared libraries..."
-    javac -cp "$CLASSPATH" -d bin $(find src -name '*.java') $(find "$SHARED_LIBS_PATH" -name '*.java')
+    SOURCE_ROOTS+=("$SHARED_LIBS_PATH/src")
 else
     echo "Compiling standalone module (no shared libraries needed)..."
-    javac -cp "$CLASSPATH" -d bin $(find src -name '*.java')
 fi
+
+javac -cp "$CLASSPATH" -d bin $(find "${SOURCE_ROOTS[@]}" -name '*.java')
+
+for source_root in "${SOURCE_ROOTS[@]}"; do
+    copy_resources "$source_root" "$BIN_DIR"
+done
 
 jar cfm "$(basename "$(pwd)").jar" "$MANIFEST_PATH" -C bin .
 
