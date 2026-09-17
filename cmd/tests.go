@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -54,7 +55,36 @@ Examples:
 				Files:   []string{cfg.ComposeFilePath(config.DefaultComposeFile), cfg.ComposeFilePath(config.TestsComposeFile)},
 				Quiet:   true,
 			})
-			return compose.RunService(ctx, "unit-tests", args)
+
+			existing, err := runner.ProjectVolumes(ctx, cfg.StackName)
+			if err != nil {
+				return err
+			}
+			runErr := compose.RunService(ctx, "unit-tests", args)
+			if err := removeVolumesCreatedByRun(ctx, runner, cfg.StackName, existing); err != nil {
+				return err
+			}
+			return runErr
 		},
 	}
+}
+
+func removeVolumesCreatedByRun(ctx context.Context, runner *docker.SDKRunner, project string, existing []string) error {
+	current, err := runner.ProjectVolumes(ctx, project)
+	if err != nil {
+		return err
+	}
+	kept := make(map[string]bool, len(existing))
+	for _, name := range existing {
+		kept[name] = true
+	}
+	var created []string
+	for _, name := range current {
+		predatesRun := kept[name]
+		if predatesRun {
+			continue
+		}
+		created = append(created, name)
+	}
+	return runner.RemoveVolumes(ctx, created)
 }

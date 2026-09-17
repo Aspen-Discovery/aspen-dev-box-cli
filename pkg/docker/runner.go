@@ -624,17 +624,33 @@ func (r *SDKRunner) ProxiedStacks(ctx context.Context, proxyProject string) (int
 	return len(seen), nil
 }
 
-func (r *SDKRunner) RemoveProjectVolumes(ctx context.Context, project string) error {
+func (r *SDKRunner) ProjectVolumes(ctx context.Context, project string) ([]string, error) {
 	vols, err := r.client.VolumeList(ctx, volume.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.compose.project="+project)),
 	})
 	if err != nil {
-		return fmt.Errorf("list %s volumes: %w", project, err)
+		return nil, fmt.Errorf("list %s volumes: %w", project, err)
 	}
+	names := make([]string, 0, len(vols.Volumes))
 	for _, v := range vols.Volumes {
-		if err := r.client.VolumeRemove(ctx, v.Name, false); err != nil {
-			return fmt.Errorf("remove volume %s: %w", v.Name, err)
+		names = append(names, v.Name)
+	}
+	return names, nil
+}
+
+func (r *SDKRunner) RemoveVolumes(ctx context.Context, names []string) error {
+	for _, name := range names {
+		if err := r.client.VolumeRemove(ctx, name, false); err != nil {
+			return fmt.Errorf("remove volume %s: %w", name, err)
 		}
 	}
 	return nil
+}
+
+func (r *SDKRunner) RemoveProjectVolumes(ctx context.Context, project string) error {
+	names, err := r.ProjectVolumes(ctx, project)
+	if err != nil {
+		return err
+	}
+	return r.RemoveVolumes(ctx, names)
 }
