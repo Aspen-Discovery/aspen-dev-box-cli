@@ -43,7 +43,7 @@ else
     echo "Compiling standalone module (no shared libraries needed)..."
 fi
 
-javac -cp "$CLASSPATH" -d bin $(find "${SOURCE_ROOTS[@]}" -name '*.java')
+javac -g --release 11 -cp "$CLASSPATH" -d bin $(find "${SOURCE_ROOTS[@]}" -name '*.java')
 
 for source_root in "${SOURCE_ROOTS[@]}"; do
     copy_resources "$source_root" "$BIN_DIR"

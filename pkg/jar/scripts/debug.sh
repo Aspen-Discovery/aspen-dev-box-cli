@@ -23,7 +23,7 @@ if [ "${NEEDS_SHARED_LIBS}" = "true" ]; then
 fi
 
 echo "Compiling ${MODULE} for debugging..."
-javac -cp "${CLASSPATH}" -d "${BIN_DIR}" ${SOURCES}
+javac -g --release 11 -cp "${CLASSPATH}" -d "${BIN_DIR}" ${SOURCES}
 
 echo "Waiting for a debugger to attach on port ${DEBUG_PORT} (${MAIN_CLASS})..."
 exec java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:${DEBUG_PORT} \
