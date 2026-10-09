@@ -26,6 +26,7 @@ func UpCommand() *cobra.Command {
 	var dbgui bool
 	var pullUpdated bool
 	var kohaStack string
+	var kohaInstance string
 	var ilsFlag string
 	var pluginsPath string
 	var plugins bool
@@ -55,7 +56,7 @@ YAML config, or "none" to skip ILS setup entirely.`,
 				files = append(files, cfg.ComposeFilePath(config.DBGUIComposeFile))
 			}
 
-			ilsFiles, err := setupILS(ilsFlag, kohaStack)
+			ilsFiles, err := setupILS(ilsFlag, kohaStack, kohaInstance)
 			if err != nil {
 				return err
 			}
@@ -110,6 +111,7 @@ YAML config, or "none" to skip ILS setup entirely.`,
 	cmd.Flags().BoolVarP(&dbgui, "dbgui", "b", false, "Run with dbgui compose file")
 	cmd.Flags().BoolVarP(&pullUpdated, "pull", "p", false, "Pull the images for the project only if they have been updated")
 	cmd.Flags().StringVarP(&kohaStack, "koha-stack", "k", "", "Koha stack to connect to (default: kohadev)")
+	cmd.Flags().StringVar(&kohaInstance, "koha-instance", "", "Koha instance name inside the stack, i.e. KOHA_INSTANCE of its koha container (default: the stack name)")
 	cmd.Flags().StringVarP(&ilsFlag, "ils", "i", "koha", "ILS preset name, path to YAML config, or 'none'")
 	cmd.Flags().BoolVar(&plugins, "plugins", false, "Mount a plugins dir into the container and enable aspen plugin loading")
 	cmd.Flags().StringVar(&pluginsPath, "plugins-path", "", "Host path of plugins dir (default: $ASPEN_PLUGINS or $ASPEN_DOCKER/plugins)")
@@ -187,7 +189,7 @@ func setupPlugins(enabled bool, path string) ([]string, error) {
 	return []string{overlay}, nil
 }
 
-func setupILS(value, kohaStack string) ([]string, error) {
+func setupILS(value, kohaStack, kohaInstance string) ([]string, error) {
 	if value == "" || value == "none" {
 		return nil, nil
 	}
@@ -196,6 +198,11 @@ func setupILS(value, kohaStack string) ([]string, error) {
 		kohaStack = "kohadev"
 	}
 	os.Setenv("KOHA_STACK", kohaStack)
+	if kohaInstance != "" {
+		os.Setenv("KOHA_INSTANCE", kohaInstance)
+	} else if os.Getenv("KOHA_INSTANCE") == "" {
+		os.Setenv("KOHA_INSTANCE", kohaStack)
+	}
 
 	configPath, err := ils.ResolvePath(value, filepath.Join(cfg.ProjectsDir, "ils"))
 	if err != nil {
